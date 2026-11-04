@@ -1,0 +1,4 @@
+{
+  "brute":   { "name": "Brute",   "sprite": "enemy_brute",   "color": "#c0392b", "shape": "square",  "hp": 6, "move": 3, "attack": "smash" },
+  "spitter": { "name": "Spitter", "sprite": "enemy_spitter", "color": "#9b59b6", "shape": "diamond", "hp": 4, "move": 2, "attack": "fire_spit" }
+}

@@ -1,0 +1,30 @@
+{
+  "first_fight": {
+    "seed": 1337,
+    "legend": { ".": "floor", "#": "wall", "o": "oil", "w": "water", "B": "barrel" },
+    "map": [
+      "..........",
+      "..........",
+      "..##......",
+      ".....oo...",
+      "....Boo.#.",
+      ".#...o..#.",
+      ".#........",
+      "......ww..",
+      "..........",
+      ".........."
+    ],
+    "heroes": [
+      { "id": "tide",  "cell": [3, 9] },
+      { "id": "volt",  "cell": [5, 9] },
+      { "id": "ember", "cell": [7, 9] }
+    ],
+    "enemies": [
+      { "type": "brute",   "cell": [2, 1] },
+      { "type": "brute",   "cell": [6, 2] },
+      { "type": "brute",   "cell": [8, 1] },
+      { "type": "spitter", "cell": [4, 0] },
+      { "type": "spitter", "cell": [7, 0] }
+    ]
+  }
+}
