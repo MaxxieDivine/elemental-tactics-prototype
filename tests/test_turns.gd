@@ -97,3 +97,40 @@ func test_preview_on_clone_does_not_touch_real_state() -> void:
 	eq(s.get_terrain(Vector2i(1, 0)), BARREL, "real barrel untouched")
 	eq(s.get_surface(Vector2i(0, 0)), OIL, "real oil untouched")
 	eq(at(s, 2, 0).hp, at(c, 2, 0).hp + GameData.rule("barrel_damage"), "clone took damage")
+
+
+## Plays many full fights with random legal hero actions. Catches crashes,
+## stuck turn loops and broken invariants in the rules.
+func test_random_fights_always_terminate_cleanly() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 12345
+	var finished := 0
+	for game in 40:
+		var s = LevelLoader.build()
+		for round_i in 40:
+			for h in s.living("hero"):
+				if rng.randf() < 0.8:
+					var dests: Array = s.move_destinations(h)
+					if not dests.is_empty():
+						Rules.move_unit(s, h, dests[rng.randi() % dests.size()])
+				var usable: Array = h.abilities.filter(func(a): return h.can_use(a) and not Rules.ability_targets(s, h, a).is_empty())
+				if not usable.is_empty() and s.phase == "player":
+					var a: String = usable[rng.randi() % usable.size()]
+					var ts: Array = Rules.ability_targets(s, h, a)
+					Rules.use_ability(s, h, a, ts[rng.randi() % ts.size()])
+			if s.phase == "player":
+				Rules.end_player_turn(s)
+			var occupied := {}
+			for u in s.units:
+				check(u.hp >= 0 and u.hp <= u.max_hp, "hp in range")
+				if u.alive:
+					check(not occupied.has(u.cell), "two units on one tile")
+					occupied[u.cell] = true
+				if u.alive:
+					check(not s.is_obstacle(u.cell), "unit not inside a wall/barrel")
+			if s.phase == "won" or s.phase == "lost":
+				finished += 1
+				break
+		if not failures.is_empty():
+			return
+	check(finished > 0, "at least some random fights reach an ending")
