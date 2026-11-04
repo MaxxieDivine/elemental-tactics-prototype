@@ -1,12 +1,16 @@
 ## Draws the board from its own display copy of the BattleState and replays
 ## rule events one by one (tweens, flashes, floating numbers, pauses).
 ## It never decides outcomes: everything comes from the event list.
+## Geometry is authored for 60 px cells and scaled to the real cell size;
+## text is drawn unscaled with a minimum size so it stays readable on phones.
+## Sprites from res://art/<sprite key>.png replace placeholders when present.
 extends Node2D
 
 const BattleState = preload("res://scripts/core/battle_state.gd")
 const GameData = preload("res://scripts/core/game_data.gd")
 
-const CELL := 60.0
+const CELL := 60.0  # authoring cell size; real size = CELL * k
+const MIN_TEXT := 11.0
 const ELEMENT_COLORS := {
 	"fire": Color("#ff7a2b"),
 	"water": Color("#4a9bff"),
@@ -23,6 +27,7 @@ const C_STEAM := Color(0.92, 0.94, 0.96, 0.82)
 const C_BARREL := Color("#d8432f")
 
 var disp  # BattleState currently shown
+var k: float = 1.0  # scale from authoring space to UI units
 var unit_px: Dictionary = {}  # unit id -> pixel centre
 var speed: float = 1.0
 var font: Font
@@ -38,6 +43,8 @@ var preview: Dictionary = {}
 var intents: Array = []
 var highlight_intent_id: int = -1
 var show_intents: bool = true
+var pending_cell: Vector2i = Vector2i(-1, -1)  # tapped once, waiting for confirm
+var inspect_cell: Vector2i = Vector2i(-1, -1)
 
 # Playback state.
 var hidden_intents: Dictionary = {}
@@ -47,6 +54,9 @@ var floaters: Array = []
 var shake: float = 0.0
 var banner: String = ""
 var banner_t: float = 0.0
+var pulse: float = 0.0
+var _shake_off := Vector2.ZERO
+var _textures: Dictionary = {}
 
 
 func _ready() -> void:
@@ -63,12 +73,23 @@ func set_state(s) -> void:
 	queue_redraw()
 
 
+func set_cell_size(px: float) -> void:
+	k = px / CELL
+	queue_redraw()
+
+
 func center(c: Vector2i) -> Vector2:
 	return Vector2(c) * CELL + Vector2(CELL, CELL) * 0.5
 
 
-func cell_at(local: Vector2) -> Vector2i:
-	return Vector2i(floori(local.x / CELL), floori(local.y / CELL))
+## Texture for a sprite key from data, or null to use the placeholder.
+func _tex(key: String) -> Texture2D:
+	if key == "":
+		return null
+	if not _textures.has(key):
+		var path := "res://art/%s.png" % key
+		_textures[key] = load(path) if ResourceLoader.exists(path) else null
+	return _textures[key]
 
 
 func _process(delta: float) -> void:
@@ -80,6 +101,7 @@ func _process(delta: float) -> void:
 	floaters = floaters.filter(func(f): return f["t"] < f["dur"])
 	shake = maxf(0.0, shake - delta * 30.0)
 	banner_t = maxf(0.0, banner_t - delta * speed)
+	pulse += delta
 	queue_redraw()
 
 
@@ -187,8 +209,9 @@ func _float(pos: Vector2, text: String, col: Color, size: int, dur: float) -> vo
 func _draw() -> void:
 	if disp == null:
 		return
-	if shake > 0.0:
-		draw_set_transform(Vector2(randf_range(-shake, shake), randf_range(-shake, shake)))
+	# Cosmetic-only randomness (screen shake); gameplay never uses it.
+	_shake_off = Vector2(randf_range(-shake, shake), randf_range(-shake, shake)) * k if shake > 0.0 else Vector2.ZERO
+	_xf()
 	_draw_tiles()
 	_draw_overlays()
 	if show_intents:
@@ -196,19 +219,28 @@ func _draw() -> void:
 	_draw_units()
 	_draw_preview()
 	_draw_effects()
-	draw_set_transform(Vector2.ZERO)
 	_draw_banner()
+	draw_set_transform(Vector2.ZERO)
+
+
+func _xf() -> void:
+	draw_set_transform(_shake_off, 0.0, Vector2(k, k))
 
 
 func _rect(c: Vector2i, inset: float = 0.0) -> Rect2:
 	return Rect2(Vector2(c) * CELL + Vector2(inset, inset), Vector2(CELL - inset * 2, CELL - inset * 2))
 
 
+## pos is in authoring space; the text itself is drawn unscaled (crisp).
 func _text(pos: Vector2, text: String, size: int, col: Color, outline: int = 4) -> void:
+	draw_set_transform(_shake_off, 0.0, Vector2.ONE)
+	var fs := int(maxf(size * k, MIN_TEXT))
 	var w := 400.0
-	var p := pos + Vector2(-w * 0.5, size * 0.35)
-	draw_string_outline(font, p, text, HORIZONTAL_ALIGNMENT_CENTER, w, size, outline, Color(0, 0, 0, 0.85))
-	draw_string(font, p, text, HORIZONTAL_ALIGNMENT_CENTER, w, size, col)
+	var p := pos * k + Vector2(-w * 0.5, fs * 0.35)
+	if outline > 0:
+		draw_string_outline(font, p, text, HORIZONTAL_ALIGNMENT_CENTER, w, fs, maxi(2, int(outline * k)), Color(0, 0, 0, 0.85))
+	draw_string(font, p, text, HORIZONTAL_ALIGNMENT_CENTER, w, fs, col)
+	_xf()
 
 
 func _draw_tiles() -> void:
@@ -216,29 +248,51 @@ func _draw_tiles() -> void:
 		for x in disp.width:
 			var c := Vector2i(x, y)
 			var r := _rect(c)
-			draw_rect(r, C_FLOOR_A if (x + y) % 2 == 0 else C_FLOOR_B)
-			match disp.get_surface(c):
-				BattleState.Surface.WATER:
-					draw_rect(_rect(c, 2), C_WATER)
-					draw_line(r.position + Vector2(14, 36), r.position + Vector2(26, 32), Color(1, 1, 1, 0.35), 2)
-					draw_line(r.position + Vector2(32, 26), r.position + Vector2(44, 22), Color(1, 1, 1, 0.35), 2)
-				BattleState.Surface.OIL:
-					draw_rect(_rect(c, 2), C_OIL)
-					draw_circle(r.position + Vector2(20, 22), 6, Color("#6b4a22"))
-					draw_circle(r.position + Vector2(40, 40), 4, Color("#6b4a22"))
-				BattleState.Surface.STEAM:
-					draw_rect(_rect(c, 1), C_STEAM)
-					draw_circle(r.position + Vector2(20, 24), 10, Color(1, 1, 1, 0.6))
-					draw_circle(r.position + Vector2(38, 34), 12, Color(1, 1, 1, 0.6))
-			match disp.get_terrain(c):
-				BattleState.Terrain.WALL:
-					draw_rect(r, C_WALL)
-					draw_rect(_rect(c, 6), C_WALL.darkened(0.25))
-				BattleState.Terrain.BARREL:
-					draw_circle(center(c), 19, C_BARREL)
-					draw_arc(center(c), 19, 0, TAU, 24, Color("#ffd166"), 3)
-					_text(center(c), "TNT", 13, Color("#ffd166"), 3)
+			var t_def := BattleState.terrain_def(disp.get_terrain(c))
+			var s_def := BattleState.surface_def(disp.get_surface(c))
+			var floor_tex := _tex(GameData.tile("floor").get("sprite", ""))
+			if floor_tex:
+				draw_texture_rect(floor_tex, r, false)
+			else:
+				draw_rect(r, C_FLOOR_A if (x + y) % 2 == 0 else C_FLOOR_B)
+			var s_tex := _tex(s_def.get("sprite", ""))
+			if s_tex:
+				draw_texture_rect(s_tex, r, false)
+			else:
+				_draw_surface_placeholder(c, r)
+			var t_tex := _tex(t_def.get("sprite", "")) if disp.get_terrain(c) != BattleState.Terrain.FLOOR else null
+			if t_tex:
+				draw_texture_rect(t_tex, r, false)
+			else:
+				_draw_terrain_placeholder(c, r)
 			draw_rect(r, Color(0, 0, 0, 0.25), false, 1.0)
+
+
+func _draw_surface_placeholder(c: Vector2i, r: Rect2) -> void:
+	match disp.get_surface(c):
+		BattleState.Surface.WATER:
+			draw_rect(_rect(c, 2), C_WATER)
+			draw_line(r.position + Vector2(14, 36), r.position + Vector2(26, 32), Color(1, 1, 1, 0.35), 2)
+			draw_line(r.position + Vector2(32, 26), r.position + Vector2(44, 22), Color(1, 1, 1, 0.35), 2)
+		BattleState.Surface.OIL:
+			draw_rect(_rect(c, 2), C_OIL)
+			draw_circle(r.position + Vector2(20, 22), 6, Color("#6b4a22"))
+			draw_circle(r.position + Vector2(40, 40), 4, Color("#6b4a22"))
+		BattleState.Surface.STEAM:
+			draw_rect(_rect(c, 1), C_STEAM)
+			draw_circle(r.position + Vector2(20, 24), 10, Color(1, 1, 1, 0.6))
+			draw_circle(r.position + Vector2(38, 34), 12, Color(1, 1, 1, 0.6))
+
+
+func _draw_terrain_placeholder(c: Vector2i, r: Rect2) -> void:
+	match disp.get_terrain(c):
+		BattleState.Terrain.WALL:
+			draw_rect(r, C_WALL)
+			draw_rect(_rect(c, 6), C_WALL.darkened(0.25))
+		BattleState.Terrain.BARREL:
+			draw_circle(center(c), 19, C_BARREL)
+			draw_arc(center(c), 19, 0, TAU, 24, Color("#ffd166"), 3)
+			_text(center(c), "TNT", 13, Color("#ffd166"), 3)
 
 
 func _draw_overlays() -> void:
@@ -252,6 +306,11 @@ func _draw_overlays() -> void:
 	for c in area_cells:
 		draw_rect(_rect(c, 2), Color(acol, 0.35))
 		draw_rect(_rect(c, 2), acol, false, 2.5)
+	if inspect_cell.x >= 0:
+		draw_rect(_rect(inspect_cell, 1), Color(1, 1, 1, 0.9), false, 2.0)
+	if pending_cell.x >= 0:
+		var a := 0.55 + 0.45 * sin(pulse * 6.0)
+		draw_rect(_rect(pending_cell, 1), Color(1, 1, 1, a), false, 4.0)
 	if path.size() > 1:
 		var pts := PackedVector2Array()
 		for c in path:
@@ -292,8 +351,8 @@ func _draw_intents() -> void:
 			var k: int = per_target.get(t, 0)
 			per_target[t] = k + 1
 			var bp := _rect(t).position + Vector2(13 + 17 * k, 13)
-			draw_circle(bp, 9, red)
-			_text(bp, str(it["order"]), 13, Color.BLACK, 0)
+			draw_circle(bp, 11, red)
+			_text(bp, str(it["order"]), 14, Color.BLACK, 0)
 			if not ok:
 				_text(tc + Vector2(0, 18), "blocked", 11, Color(0.8, 0.8, 0.8), 3)
 
@@ -314,7 +373,13 @@ func _draw_units() -> void:
 		if not u.alive:
 			continue
 		var p: Vector2 = unit_px[u.id]
-		if u.team == "hero":
+		var data: Dictionary = GameData.hero(u.type_id) if u.team == "hero" else GameData.enemy(u.type_id)
+		var tex := _tex(data.get("sprite", ""))
+		if tex:
+			draw_texture_rect(tex, Rect2(p - Vector2(24, 24), Vector2(48, 48)), false)
+			if u.id == selected_id or u.id == acting_id:
+				draw_arc(p, 27, 0, TAU, 32, Color.WHITE if u.team == "hero" else Color("#ffdd55"), 3.0)
+		elif u.team == "hero":
 			var col := Color(GameData.hero(u.type_id)["color"])
 			var done: bool = u.is_done() and disp.phase == "player"
 			if done:
@@ -338,8 +403,9 @@ func _draw_units() -> void:
 				draw_rect(Rect2(p - Vector2(18, 18), Vector2(36, 36)), col)
 				draw_rect(Rect2(p - Vector2(18, 18), Vector2(36, 36)), Color(0, 0, 0, 0.7), false, 2.0)
 			_text(p, u.name.substr(0, 1), 18, Color.WHITE, 3)
-			draw_circle(p + Vector2(-21, -21), 8, Color(0.1, 0.1, 0.1))
-			_text(p + Vector2(-21, -21), str(u.order), 11, Color.WHITE, 0)
+		if u.team == "enemy":
+			draw_circle(p + Vector2(-20, -20), 11, Color(0.1, 0.1, 0.1))
+			_text(p + Vector2(-20, -20), str(u.order), 14, Color.WHITE, 0)
 		# HP pips.
 		var w := 44.0
 		var pip: float = w / u.max_hp
