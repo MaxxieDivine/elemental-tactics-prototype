@@ -1,0 +1,5 @@
+{
+  "tide":  { "name": "Tide",  "color": "#3d8bff", "hp": 8, "move": 4, "abilities": ["strike", "splash", "wave"] },
+  "volt":  { "name": "Volt",  "color": "#f2d03b", "hp": 7, "move": 4, "abilities": ["strike", "zap", "thunderclap"] },
+  "ember": { "name": "Ember", "color": "#ff6a2b", "hp": 7, "move": 4, "abilities": ["strike", "firebolt", "inferno"] }
+}

@@ -1,0 +1,8 @@
+{
+  "burn_damage": 1,
+  "burn_turns": 2,
+  "steam_turns": 2,
+  "oil_ignite_damage": 2,
+  "barrel_damage": 3,
+  "collision_damage": 1
+}

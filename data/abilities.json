@@ -1,0 +1,56 @@
+{
+  "strike": {
+    "name": "Strike", "element": "physical", "shape": "single",
+    "range": 1, "los": false, "needs_target": true,
+    "damage": 2, "push": 0, "cooldown": 0,
+    "desc": "Melee hit on an adjacent unit or barrel."
+  },
+  "splash": {
+    "name": "Splash", "element": "water", "shape": "plus",
+    "range": 4, "los": true, "needs_target": false,
+    "damage": 0, "push": 0, "cooldown": 0,
+    "desc": "Soak a + shaped area with water. Puts out burning units."
+  },
+  "wave": {
+    "name": "Wave", "element": "water", "shape": "line",
+    "range": 3, "los": false, "needs_target": false,
+    "damage": 1, "push": 2, "cooldown": 1,
+    "desc": "Straight jet: soaks its path, hits the first thing and pushes it 2 tiles."
+  },
+  "zap": {
+    "name": "Zap", "element": "lightning", "shape": "single",
+    "range": 4, "los": true, "needs_target": false,
+    "damage": 3, "push": 0, "cooldown": 0,
+    "desc": "Strike one tile. Spreads through all connected water."
+  },
+  "thunderclap": {
+    "name": "Thunderclap", "element": "lightning", "shape": "square",
+    "range": 3, "los": true, "needs_target": false,
+    "damage": 1, "push": 0, "cooldown": 2,
+    "desc": "3x3 shock. Any water touched carries it further."
+  },
+  "firebolt": {
+    "name": "Firebolt", "element": "fire", "shape": "single",
+    "range": 4, "los": true, "needs_target": false,
+    "damage": 2, "push": 0, "cooldown": 0,
+    "desc": "Burn one tile. Ignites oil, explodes barrels, boils water into steam."
+  },
+  "inferno": {
+    "name": "Inferno", "element": "fire", "shape": "plus",
+    "range": 3, "los": true, "needs_target": false,
+    "damage": 1, "push": 0, "cooldown": 2,
+    "desc": "+ shaped blaze. Burns everything it touches."
+  },
+  "smash": {
+    "name": "Smash", "element": "physical", "shape": "single",
+    "range": 1, "los": false, "needs_target": false,
+    "damage": 3, "push": 0, "cooldown": 0,
+    "desc": "Heavy melee hit on an adjacent tile."
+  },
+  "fire_spit": {
+    "name": "Fire Spit", "element": "fire", "shape": "single",
+    "range": 4, "los": true, "needs_target": false,
+    "damage": 2, "push": 0, "cooldown": 0,
+    "desc": "Ranged fire glob. Needs line of sight when it fires."
+  }
+}
