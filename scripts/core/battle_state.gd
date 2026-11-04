@@ -1,11 +1,16 @@
-## The whole fight as plain data: grid terrain, surfaces, units, round and phase.
-## Also owns grid queries (movement range, paths, line of sight).
+## The whole fight as plain data: grid terrain, surfaces, units, round, phase
+## and the seeded RNG. No Nodes. Also owns grid queries (movement range,
+## paths, line of sight). What each tile/surface does comes from terrain.json.
 extends RefCounted
 
 const Unit = preload("res://scripts/core/unit.gd")
+const GameData = preload("res://scripts/core/game_data.gd")
 
 enum Terrain { FLOOR, WALL, BARREL }
 enum Surface { NONE, WATER, OIL, STEAM }
+## Names match the keys in data/terrain.json.
+const TERRAIN_NAMES: Array[String] = ["floor", "wall", "barrel"]
+const SURFACE_NAMES: Array[String] = ["none", "water", "oil", "steam"]
 
 const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
@@ -13,11 +18,15 @@ var width: int = 10
 var height: int = 10
 var terrain: Array = []
 var surface: Array = []
-var steam_timer: Array = []
+var steam_timer: Array = []  # rounds left for surfaces with a duration
 var units: Array = []
 var round_num: int = 1
 var phase: String = "player"  # player, enemy, won, lost
 var next_unit_id: int = 1
+## All gameplay randomness must go through rand_int() so that cloned states
+## (used for previews) roll exactly the same results as the real one.
+var rng_seed: int = 0
+var rng_state: int = 0
 
 
 func setup(w: int, h: int) -> void:
@@ -44,7 +53,27 @@ func clone():
 	s.round_num = round_num
 	s.phase = phase
 	s.next_unit_id = next_unit_id
+	s.rng_seed = rng_seed
+	s.rng_state = rng_state
 	return s
+
+
+# --- randomness ------------------------------------------------------------
+
+func seed_rng(seed_value: int) -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = seed_value
+	rng_seed = seed_value
+	rng_state = r.state
+
+
+## Inclusive random integer from the fight's own RNG.
+func rand_int(lo: int, hi: int) -> int:
+	var r := RandomNumberGenerator.new()
+	r.state = rng_state
+	var v := r.randi_range(lo, hi)
+	rng_state = r.state
+	return v
 
 
 # --- cells -----------------------------------------------------------------
@@ -69,18 +98,29 @@ func get_surface(c: Vector2i) -> int:
 	return surface[idx(c)] if in_bounds(c) else Surface.NONE
 
 
-func set_surface(c: Vector2i, s: int, timer: int = 0) -> void:
+## timer < 0 uses the surface's "duration" from terrain.json (0 = permanent).
+func set_surface(c: Vector2i, s: int, timer: int = -1) -> void:
+	if timer < 0:
+		timer = int(surface_def(s).get("duration", 0))
 	surface[idx(c)] = s
 	steam_timer[idx(c)] = timer
 
 
-## Walls, barrels and the map edge stop movement and pushes.
+static func terrain_def(t: int) -> Dictionary:
+	return GameData.tile(TERRAIN_NAMES[t])
+
+
+static func surface_def(s: int) -> Dictionary:
+	return GameData.surface(SURFACE_NAMES[s])
+
+
+## Map edge and tiles with blocks_move (walls, barrels) stop movement and pushes.
 func is_obstacle(c: Vector2i) -> bool:
-	return not in_bounds(c) or get_terrain(c) != Terrain.FLOOR
+	return not in_bounds(c) or terrain_def(get_terrain(c)).get("blocks_move", false)
 
 
 func blocks_sight(c: Vector2i) -> bool:
-	return get_terrain(c) == Terrain.WALL or get_surface(c) == Surface.STEAM
+	return terrain_def(get_terrain(c)).get("blocks_sight", false) or surface_def(get_surface(c)).get("blocks_sight", false)
 
 
 # --- units -----------------------------------------------------------------
@@ -196,3 +236,11 @@ func surface_component(start: Vector2i, s: int) -> Array:
 				seen[n] = true
 				out.append(n)
 	return out
+
+
+## Tiles connected to start through surfaces that conduct this element.
+func conductive_component(start: Vector2i, element: String) -> Array:
+	var s: int = get_surface(start)
+	if surface_def(s).get("conducts", "") != element:
+		return []
+	return surface_component(start, s)

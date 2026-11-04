@@ -96,7 +96,7 @@ func test_preview_on_clone_does_not_touch_real_state() -> void:
 	Rules.use_ability(c, c.unit_by_id(hero(s, "ember").id), "firebolt", Vector2i(0, 0))
 	eq(s.get_terrain(Vector2i(1, 0)), BARREL, "real barrel untouched")
 	eq(s.get_surface(Vector2i(0, 0)), OIL, "real oil untouched")
-	eq(at(s, 2, 0).hp, at(c, 2, 0).hp + GameData.rule("barrel_damage"), "clone took damage")
+	eq(at(s, 2, 0).hp, at(c, 2, 0).hp + barrel_damage(), "clone took damage")
 
 
 ## Plays many full fights with random legal hero actions. Catches crashes,
@@ -134,3 +134,34 @@ func test_random_fights_always_terminate_cleanly() -> void:
 		if not failures.is_empty():
 			return
 	check(finished > 0, "at least some random fights reach an ending")
+
+
+func test_commands_are_validated() -> void:
+	var s = make(["......", "......"], [["tide", 0, 0]], [["brute", 5, 0]])
+	var tide = hero(s, "tide")
+	var brute = at(s, 5, 0)
+	eq(Rules.apply_command(s, Commands.move(brute.id, Vector2i(4, 1))), [], "cannot command enemies")
+	eq(Rules.apply_command(s, Commands.use_ability(tide.id, "zap", Vector2i(1, 0))), [], "cannot use another hero's ability")
+	check(not Rules.apply_command(s, Commands.move(tide.id, Vector2i(1, 0))).is_empty(), "valid move accepted")
+	eq(Rules.apply_command(s, Commands.move(tide.id, Vector2i(2, 0))), [], "second move rejected")
+	check(not Rules.apply_command(s, Commands.wait(tide.id)).is_empty(), "wait accepted")
+	check(not Rules.apply_command(s, Commands.end_turn()).is_empty(), "end turn accepted")
+
+
+func test_seeded_rng_lives_in_state_and_clones_exactly() -> void:
+	var a = LevelLoader.build()
+	var b = LevelLoader.build()
+	eq(a.rng_seed, int(GameData.encounter()["seed"]), "seed comes from the encounter")
+	var c = a.clone()
+	var ra: Array = []
+	var rb: Array = []
+	var rc: Array = []
+	for i in 5:
+		ra.append(a.rand_int(0, 1000))
+		rb.append(b.rand_int(0, 1000))
+		rc.append(c.rand_int(0, 1000))
+	eq(ra, rb, "same seed -> same rolls")
+	eq(ra, rc, "clone (used for previews) rolls the same as the real state")
+	var d = LevelLoader.build()
+	d.seed_rng(99)
+	check(d.rand_int(0, 1000000) != LevelLoader.build().rand_int(0, 1000000), "different seed -> different rolls")

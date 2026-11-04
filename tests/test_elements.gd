@@ -55,7 +55,7 @@ func test_wave_slides_barrel_into_enemy_and_it_explodes() -> void:
 	Rules.use_ability(s, hero(s, "tide"), "wave", Vector2i(1, 0))
 	eq(s.get_terrain(Vector2i(1, 0)), FLOOR, "barrel left its tile")
 	eq(s.get_terrain(Vector2i(2, 0)), FLOOR, "barrel exploded on impact")
-	eq(brute.hp, hp - GameData.rule("barrel_damage"), "enemy caught in blast")
+	eq(brute.hp, hp - barrel_damage(), "enemy caught in blast")
 
 
 func test_water_puts_out_burning() -> void:
@@ -151,8 +151,8 @@ func test_steam_blocks_line_of_sight() -> void:
 
 func test_steam_fades_after_configured_rounds() -> void:
 	var s = make(["........", "........", "........"], [["ember", 0, 2]], [["brute", 7, 0]])
-	s.set_surface(Vector2i(4, 2), STEAM, GameData.rule("steam_turns"))
-	for i in GameData.rule("steam_turns"):
+	s.set_surface(Vector2i(4, 2), STEAM, steam_turns())
+	for i in steam_turns():
 		eq(s.get_surface(Vector2i(4, 2)), STEAM, "steam still present before round %d ends" % (i + 1))
 		Rules.end_player_turn(s)
 	eq(s.get_surface(Vector2i(4, 2)), NONE, "steam faded")
@@ -172,8 +172,8 @@ func test_fire_ignites_whole_oil_patch() -> void:
 	var bhp: int = b.hp
 	Rules.use_ability(s, hero(s, "ember"), "firebolt", Vector2i(2, 1))
 	eq(s.get_surface(Vector2i(0, 0)), NONE, "oil burned away")
-	eq(a.hp, ahp - GameData.rule("oil_ignite_damage"), "unit elsewhere on patch hit by ignition")
-	eq(b.hp, maxi(0, bhp - ab_dmg("firebolt") - GameData.rule("oil_ignite_damage")), "target takes bolt + ignition")
+	eq(a.hp, ahp - oil_damage(), "unit elsewhere on patch hit by ignition")
+	eq(b.hp, maxi(0, bhp - ab_dmg("firebolt") - oil_damage()), "target takes bolt + ignition")
 	check(a.burning > 0, "unit on patch is burning")
 	eq(s.get_surface(Vector2i(4, 3)), OIL, "disconnected oil untouched")
 	eq(far.burning, 0, "unit on other oil not burning")
@@ -189,7 +189,7 @@ func test_burning_oil_sets_off_adjacent_barrel_in_order() -> void:
 	var hp: int = b.hp
 	var ev: Array = Rules.use_ability(s, hero(s, "ember"), "firebolt", Vector2i(0, 0))
 	eq(s.get_terrain(Vector2i(1, 0)), FLOOR, "barrel gone")
-	eq(b.hp, hp - GameData.rule("barrel_damage"), "explosion hit nearby enemy")
+	eq(b.hp, hp - barrel_damage(), "explosion hit nearby enemy")
 	var t := types(ev)
 	check(t.find("explosion") > ev.find(ev.filter(func(e): return e["type"] == "text" and e["text"] == "IGNITE!")[0]), "ignite plays before explosion")
 
@@ -223,3 +223,15 @@ func test_explosion_boils_water_and_burns_dry_units() -> void:
 	eq(s.get_surface(Vector2i(0, 0)), STEAM, "explosion turns water to steam")
 	check(dry.burning > 0, "dry unit burns")
 	eq(wet.burning, 0, "wet unit does not burn")
+
+
+func test_reactions_are_read_from_terrain_data() -> void:
+	var r: Dictionary = GameData.reaction("fire", "oil")
+	var old: int = r["damage"]
+	r["damage"] = 5
+	var s = make(["oo....", "......"], [["ember", 0, 1]], [["brute", 1, 0]])
+	var b = at(s, 1, 0)
+	var hp: int = b.hp
+	Rules.use_ability(s, hero(s, "ember"), "firebolt", Vector2i(0, 0))
+	r["damage"] = old
+	eq(b.hp, hp - 5, "ignite damage taken from terrain.json")

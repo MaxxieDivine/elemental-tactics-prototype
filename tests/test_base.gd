@@ -6,6 +6,7 @@ const Rules = preload("res://scripts/core/rules.gd")
 const LevelLoader = preload("res://scripts/core/level_loader.gd")
 const GameData = preload("res://scripts/core/game_data.gd")
 const EnemyAI = preload("res://scripts/core/enemy_ai.gd")
+const Commands = preload("res://scripts/core/commands.gd")
 
 const WATER := BattleState.Surface.WATER
 const OIL := BattleState.Surface.OIL
@@ -55,3 +56,15 @@ func types(events: Array) -> Array:
 
 func ab_dmg(id: String) -> int:
 	return int(GameData.ability(id)["damage"])
+
+
+func steam_turns() -> int:
+	return int(GameData.surface("steam")["duration"])
+
+
+func oil_damage() -> int:
+	return int(GameData.reaction("fire", "oil")["damage"])
+
+
+func barrel_damage() -> int:
+	return int(GameData.tile("barrel")["blast_damage"])

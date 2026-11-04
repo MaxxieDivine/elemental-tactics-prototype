@@ -1,6 +1,8 @@
 ## Loads the editable JSON data in res://data/ and caches it.
-## All tuning numbers live in those files, not in code.
+## All tuning numbers, terrain interactions and the encounter live there.
 extends RefCounted
+
+const DEFAULT_ENCOUNTER := "first_fight"
 
 static var _cache: Dictionary = {}
 
@@ -32,5 +34,18 @@ static func rule(key: String) -> int:
 	return int(get_json("rules")[key])
 
 
-static func level() -> Dictionary:
-	return get_json("level")
+static func encounter(id: String = DEFAULT_ENCOUNTER) -> Dictionary:
+	return get_json("encounters")[id]
+
+
+static func tile(name: String) -> Dictionary:
+	return get_json("terrain")["tiles"][name]
+
+
+static func surface(name: String) -> Dictionary:
+	return get_json("terrain")["surfaces"][name]
+
+
+## What happens when an element touches a surface ({} if nothing).
+static func reaction(element: String, surface_name: String) -> Dictionary:
+	return get_json("terrain")["reactions"].get(element, {}).get(surface_name, {})

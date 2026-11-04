@@ -20,6 +20,35 @@ const STEAM := BattleState.Surface.STEAM
 
 
 # =========================================================================
+# Commands (the only entry point the view uses to change the fight)
+# =========================================================================
+
+## Validates and applies a command from Commands. Returns the events to
+## animate; an empty list means the command was rejected.
+static func apply_command(state, cmd: Dictionary) -> Array:
+	if state.phase != "player":
+		return []
+	if cmd["type"] == "end_turn":
+		return end_player_turn(state)
+	var u = state.unit_by_id(cmd.get("unit", -1))
+	if u == null or not u.alive or u.team != "hero":
+		return []
+	match cmd["type"]:
+		"move":
+			return move_unit(state, u, cmd["to"])
+		"use_ability":
+			if not u.abilities.has(cmd["ability"]):
+				return []
+			return use_ability(state, u, cmd["ability"], cmd["target"])
+		"wait":
+			if u.is_done():
+				return []
+			wait_unit(state, u)
+			return [{"type": "wait", "unit": u.id}]
+	return []
+
+
+# =========================================================================
 # Player-facing queries
 # =========================================================================
 
@@ -31,7 +60,7 @@ static func ability_targets(state, u, ability_id: String) -> Array:
 		for dir in BattleState.DIRS:
 			for i in range(1, r + 1):
 				var c: Vector2i = u.cell + dir * i
-				if not state.in_bounds(c) or state.get_terrain(c) == WALL:
+				if not state.in_bounds(c) or _is_wall(state, c):
 					break
 				out.append(c)
 		return out
@@ -39,11 +68,11 @@ static func ability_targets(state, u, ability_id: String) -> Array:
 		for x in state.width:
 			var c := Vector2i(x, y)
 			var d := BattleState.manhattan(u.cell, c)
-			if d < 1 or d > r or state.get_terrain(c) == WALL:
+			if d < 1 or d > r or _is_wall(state, c):
 				continue
 			if ab["los"] and not state.has_los(u.cell, c):
 				continue
-			if ab.get("needs_target", false) and state.unit_at(c) == null and state.get_terrain(c) != BARREL:
+			if ab.get("needs_target", false) and state.unit_at(c) == null and not _explodes(state, c):
 				continue
 			out.append(c)
 	return out
@@ -66,10 +95,10 @@ static func shape_cells(state, caster_cell: Vector2i, ability_id: String, target
 			var dir := _dir_to(caster_cell, target)
 			for i in range(1, int(ab["range"]) + 1):
 				var c: Vector2i = caster_cell + dir * i
-				if not state.in_bounds(c) or state.get_terrain(c) == WALL:
+				if not state.in_bounds(c) or _is_wall(state, c):
 					break
 				out.append(c)
-				if state.unit_at(c) != null or state.get_terrain(c) == BARREL:
+				if state.unit_at(c) != null or _explodes(state, c):
 					break
 		_:
 			out.append(target)
@@ -124,13 +153,13 @@ static func perform_ability(state, u, ability_id: String, target: Vector2i, even
 		# Soak/burn the path, then hit and push the first thing in the way.
 		var last: Vector2i = cells[-1] if not cells.is_empty() else u.cell
 		for c in cells:
-			if c != last or (state.unit_at(c) == null and state.get_terrain(c) != BARREL):
+			if c != last or (state.unit_at(c) == null and not _explodes(state, c)):
 				apply_element(state, c, element, 0, events)
 		if cells.is_empty():
 			return
 		var hit = state.unit_at(last)
 		var dir := _dir_to(u.cell, target)
-		if state.get_terrain(last) == BARREL:
+		if _explodes(state, last):
 			if int(ab["push"]) > 0:
 				push_barrel(state, last, dir, int(ab["push"]), events)
 			else:
@@ -173,7 +202,7 @@ static func apply_element(state, c: Vector2i, element: String, dmg: int, events:
 
 ## Physical hit: damages a unit, or sets off a barrel.
 static func hit_cell(state, c: Vector2i, dmg: int, element: String, events: Array) -> void:
-	if state.get_terrain(c) == BARREL:
+	if _explodes(state, c):
 		explode_barrel(state, c, events)
 		return
 	var u = state.unit_at(c)
@@ -181,87 +210,92 @@ static func hit_cell(state, c: Vector2i, dmg: int, element: String, events: Arra
 		damage_unit(state, u, dmg, element, events)
 
 
-## Water: turns the tile to water (oil floats and is unaffected), clears
-## steam, and puts out a burning unit standing there.
+## Water: applies the "water" reactions from terrain.json (dry tile or
+## steam -> water; oil has none, so it floats) and douses a burning unit.
 static func soak(state, c: Vector2i, events: Array) -> void:
 	if state.is_obstacle(c):
 		return
-	var s: int = state.get_surface(c)
-	if s != OIL and s != WATER:
-		state.set_surface(c, WATER)
-		events.append({"type": "surface", "cell": c, "surface": WATER})
+	var r := _reaction(state, "water", c)
+	if r.has("becomes"):
+		var to := BattleState.SURFACE_NAMES.find(r["becomes"])
+		state.set_surface(c, to)
+		events.append({"type": "surface", "cell": c, "surface": to})
 	var u = state.unit_at(c)
 	if u != null and u.burning > 0:
 		_set_burning(state, u, 0, events)
 		events.append({"type": "text", "cell": c, "text": "Doused", "element": "water"})
 
 
-## Fire: explodes barrels, boils water into steam (and the steam protects
-## from burning), damages + ignites units, and ignites connected oil.
+## Fire: explodes barrels, applies the "fire" reactions from terrain.json
+## (water -> steam, which protects from burning; oil -> ignite the patch),
+## and damages + ignites the unit standing there.
 static func apply_fire(state, c: Vector2i, dmg: int, events: Array) -> void:
-	if not state.in_bounds(c) or state.get_terrain(c) == WALL:
+	if not state.in_bounds(c) or _is_wall(state, c):
 		return
-	if state.get_terrain(c) == BARREL:
+	if _explodes(state, c):
 		explode_barrel(state, c, events)
 		return
-	var s: int = state.get_surface(c)
-	var protected := false
-	if s == WATER:
-		state.set_surface(c, STEAM, GameData.rule("steam_turns"))
-		events.append({"type": "surface", "cell": c, "surface": STEAM})
-		events.append({"type": "text", "cell": c, "text": "Steam", "element": "steam"})
-		protected = true
+	var r := _reaction(state, "fire", c)
+	if r.has("becomes"):
+		var to := BattleState.SURFACE_NAMES.find(r["becomes"])
+		state.set_surface(c, to)
+		events.append({"type": "surface", "cell": c, "surface": to})
+		if r.has("text"):
+			events.append({"type": "text", "cell": c, "text": r["text"], "element": r["becomes"]})
 	var u = state.unit_at(c)
 	if u != null:
 		damage_unit(state, u, dmg, "fire", events)
-		if u.alive and not protected:
+		if u.alive and not r.get("prevents_burn", false):
 			_set_burning(state, u, GameData.rule("burn_turns"), events)
-	if s == OIL:
-		ignite_oil(state, c, events)
+	if r.get("chain", "") == "ignite":
+		ignite_oil(state, c, r, events)
 
 
 ## Burns away the whole connected oil patch. Everyone standing in it takes
 ## damage and catches fire; barrels touching it explode.
-static func ignite_oil(state, start: Vector2i, events: Array) -> void:
-	var patch: Array = state.surface_component(start, OIL)
+static func ignite_oil(state, start: Vector2i, r: Dictionary, events: Array) -> void:
+	var patch: Array = state.surface_component(start, state.get_surface(start))
 	if patch.is_empty():
 		return
 	events.append({"type": "pause", "time": 0.2})
-	events.append({"type": "text", "cell": start, "text": "IGNITE!", "element": "fire"})
+	events.append({"type": "text", "cell": start, "text": r.get("text", "IGNITE!"), "element": "fire"})
 	events.append({"type": "flash", "cells": patch, "element": "fire"})
 	for c in patch:
 		state.set_surface(c, NONE)
 		events.append({"type": "surface", "cell": c, "surface": NONE})
-	var dmg := GameData.rule("oil_ignite_damage")
+	var dmg := int(r.get("damage", 0))
 	var barrels: Array = []
 	for c in patch:
 		var u = state.unit_at(c)
 		if u != null:
 			damage_unit(state, u, dmg, "fire", events)
-			if u.alive:
+			if u.alive and r.get("burns", false):
 				_set_burning(state, u, GameData.rule("burn_turns"), events)
 		for dir in BattleState.DIRS:
 			var n: Vector2i = c + dir
-			if state.get_terrain(n) == BARREL and not barrels.has(n):
+			if _explodes(state, n) and not barrels.has(n):
 				barrels.append(n)
 	for b in barrels:
 		explode_barrel(state, b, events)
 
 
-## Barrel: removed, then fire hits all 8 surrounding tiles (chains freely).
+## Barrel: removed, then its blast element (fire) hits all 8 surrounding
+## tiles, which chains freely.
 static func explode_barrel(state, c: Vector2i, events: Array) -> void:
-	if state.get_terrain(c) != BARREL:
+	if not _explodes(state, c):
 		return
+	var def := BattleState.terrain_def(state.get_terrain(c))
 	state.set_terrain(c, FLOOR)
 	events.append({"type": "pause", "time": 0.2})
 	events.append({"type": "terrain", "cell": c, "terrain": FLOOR})
 	events.append({"type": "explosion", "cell": c})
 	events.append({"type": "text", "cell": c, "text": "BOOM!", "element": "fire"})
-	var dmg := GameData.rule("barrel_damage")
+	var dmg := int(def.get("blast_damage", 0))
+	var element: String = def.get("blast_element", "fire")
 	for dy in [-1, 0, 1]:
 		for dx in [-1, 0, 1]:
 			if dx != 0 or dy != 0:
-				apply_fire(state, c + Vector2i(dx, dy), dmg, events)
+				apply_element(state, c + Vector2i(dx, dy), element, dmg, events)
 
 
 ## Lightning: hits the given tiles, plus every tile of any water body that
@@ -273,7 +307,7 @@ static func apply_lightning(state, cells: Array, dmg: int, events: Array) -> voi
 			zone.append(c)
 	var conducted: Array = []
 	for c in cells:
-		for w in state.surface_component(c, WATER):
+		for w in state.conductive_component(c, "lightning"):
 			if not zone.has(w) and not conducted.has(w):
 				conducted.append(w)
 	if not conducted.is_empty():
@@ -281,7 +315,7 @@ static func apply_lightning(state, cells: Array, dmg: int, events: Array) -> voi
 		events.append({"type": "text", "cell": conducted[0], "text": "SHOCK!", "element": "lightning"})
 		events.append({"type": "flash", "cells": conducted, "element": "lightning"})
 	for c in zone + conducted:
-		if state.get_terrain(c) == BARREL:
+		if _explodes(state, c):
 			explode_barrel(state, c, events)
 			continue
 		var u = state.unit_at(c)
@@ -316,7 +350,7 @@ static func push_unit(state, u, dir: Vector2i, dist: int, events: Array) -> void
 		var other = state.unit_at(block_cell)
 		if other != null:
 			damage_unit(state, other, cd, "physical", events)
-		elif state.get_terrain(block_cell) == BARREL:
+		elif _explodes(state, block_cell):
 			explode_barrel(state, block_cell, events)
 
 
@@ -340,7 +374,7 @@ static func push_barrel(state, c: Vector2i, dir: Vector2i, dist: int, events: Ar
 
 
 static func _on_enter_cell(state, u, events: Array) -> void:
-	if u.burning > 0 and state.get_surface(u.cell) == WATER:
+	if u.burning > 0 and BattleState.surface_def(state.get_surface(u.cell)).get("douses", false):
 		_set_burning(state, u, 0, events)
 		events.append({"type": "text", "cell": u.cell, "text": "Doused", "element": "water"})
 
@@ -401,11 +435,11 @@ static func end_player_turn(state) -> Array:
 		if _check_end(state, events):
 			return events
 
-	# End of round.
+	# End of round: timed surfaces (steam) fade.
 	for y in state.height:
 		for x in state.width:
 			var c := Vector2i(x, y)
-			if state.get_surface(c) == STEAM:
+			if state.steam_timer[state.idx(c)] > 0:
 				var t: int = state.steam_timer[state.idx(c)] - 1
 				if t <= 0:
 					state.set_surface(c, NONE)
@@ -454,6 +488,19 @@ static func _check_end(state, events: Array) -> bool:
 		return false
 	events.append({"type": "game_over", "result": state.phase})
 	return true
+
+
+static func _reaction(state, element: String, c: Vector2i) -> Dictionary:
+	return GameData.reaction(element, BattleState.SURFACE_NAMES[state.get_surface(c)])
+
+
+static func _explodes(state, c: Vector2i) -> bool:
+	return state.in_bounds(c) and BattleState.terrain_def(state.get_terrain(c)).get("explodes", false)
+
+
+## Solid, non-exploding blockers (walls): never targetable, stop lines.
+static func _is_wall(state, c: Vector2i) -> bool:
+	return state.is_obstacle(c) and not _explodes(state, c)
 
 
 static func _dir_to(from: Vector2i, to: Vector2i) -> Vector2i:

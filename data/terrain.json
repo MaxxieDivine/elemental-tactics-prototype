@@ -1,0 +1,24 @@
+{
+  "tiles": {
+    "floor":  { "sprite": "tile_floor",  "blocks_move": false, "blocks_sight": false },
+    "wall":   { "sprite": "tile_wall",   "blocks_move": true,  "blocks_sight": true },
+    "barrel": { "sprite": "tile_barrel", "blocks_move": true,  "blocks_sight": false,
+                "explodes": true, "blast_damage": 3, "blast_element": "fire" }
+  },
+  "surfaces": {
+    "none":  { "sprite": "" },
+    "water": { "sprite": "surface_water", "blocks_sight": false, "conducts": "lightning", "douses": true },
+    "oil":   { "sprite": "surface_oil",   "blocks_sight": false },
+    "steam": { "sprite": "surface_steam", "blocks_sight": true, "duration": 2 }
+  },
+  "reactions": {
+    "water": {
+      "none":  { "becomes": "water" },
+      "steam": { "becomes": "water" }
+    },
+    "fire": {
+      "water": { "becomes": "steam", "prevents_burn": true, "text": "Steam" },
+      "oil":   { "chain": "ignite", "damage": 2, "burns": true, "text": "IGNITE!" }
+    }
+  }
+}

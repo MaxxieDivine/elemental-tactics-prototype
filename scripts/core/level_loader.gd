@@ -1,4 +1,4 @@
-## Builds a BattleState from data/level.json + unit data.
+## Builds a BattleState from an encounter in data/encounters.json + unit data.
 extends RefCounted
 
 const BattleState = preload("res://scripts/core/battle_state.gd")
@@ -9,10 +9,11 @@ const EnemyAI = preload("res://scripts/core/enemy_ai.gd")
 
 static func build(level: Dictionary = {}) -> Object:
 	if level.is_empty():
-		level = GameData.level()
+		level = GameData.encounter()
 	var rows: Array = level["map"]
 	var state = BattleState.new()
 	state.setup(rows[0].length(), rows.size())
+	state.seed_rng(int(level.get("seed", 0)))
 	var legend: Dictionary = level["legend"]
 	for y in rows.size():
 		for x in rows[y].length():
