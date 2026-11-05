@@ -7,6 +7,8 @@
 ## and start position live in data/town.json. NPCs and objects can appear,
 ## disappear, move or change with story flags through their "states" (see
 ## WorldState); a map is always built for one set of flags.
+## A map may also list "triggers": zones that start an interaction when the
+## player walks onto one of their cells (see trigger_at).
 extends RefCounted
 
 const GameData = preload("res://scripts/core/game_data.gd")
@@ -29,6 +31,9 @@ var things: Dictionary = {}  # cell -> id of the NPC/object/prop standing there 
 var targets: Dictionary = {}
 var exit_cells: Dictionary = {}  # cell -> exit id
 var pacers: Dictionary = {}  # NPC id -> Pacer, for NPCs whose state has "pace"
+## Trigger zones as written in data: {"id", "cells"/"cell", "interaction",
+## optional "requires", "unless", "time_of_day", "once", "facing"}.
+var triggers: Array = []
 
 
 ## The world file: tile legend, tile size, tuning and the start position.
@@ -79,7 +84,8 @@ static func from_data(raw: Dictionary, flags = null):
 		m._add_target(n, "npc", [c])
 	for o in md.get("objects", []):
 		m.things[cell_of(o["cell"])] = o["id"]
-		m._add_target(o, "object", [cell_of(o["cell"])])
+		if str(o.get("interaction", "")) != "":
+			m._add_target(o, "object", [cell_of(o["cell"])])  # scenery (a ferry offshore) is not a target
 	for i in md.get("props", []).size():
 		m.things[cell_of(md["props"][i]["cell"])] = "prop_%d" % i
 	for e in md.get("exits", []):
@@ -87,6 +93,7 @@ static func from_data(raw: Dictionary, flags = null):
 		for c in cells:
 			m.exit_cells[c] = e["id"]
 		m._add_target(e, "exit", cells)
+	m.triggers = md.get("triggers", []).duplicate(true)
 	return m
 
 
@@ -150,6 +157,20 @@ func move_thing(thing_id: String, to: Vector2i) -> void:
 		var t: Dictionary = targets[thing_id]
 		t["cells"] = [to]
 		t["stand"] = _stand_cells(t["def"], [to])
+
+
+## The trigger zone that starts when the player steps onto `c` now ({} if
+## none): its cells include `c`, its rule matches these flags (requires,
+## unless, time_of_day), and a "once" trigger has not run yet. The caller
+## marks a once trigger as run (flags.mark_ran) when it starts it.
+func trigger_at(c: Vector2i, flags) -> Dictionary:
+	for t in triggers:
+		if not exit_cells_of(t).has(c) or not flags.meets_rule(t):
+			continue
+		if bool(t.get("once", false)) and flags.has_run(str(t["id"])):
+			continue
+		return t
+	return {}
 
 
 func in_bounds(c: Vector2i) -> bool:

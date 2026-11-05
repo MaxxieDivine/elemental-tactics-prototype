@@ -1,8 +1,17 @@
 ## Plays one interaction's dialogue from data/dialogue.json. Picks the first
 ## entry whose flag requirements are met, steps through its lines, and on the
-## last line applies its effects: set_flags, and an optional fight request.
+## last line applies its effects: set_flags, set_time, and an optional fight
+## request. Entries can also require a time of day ("time_of_day").
 ## Each line's action-button label comes from data too: the line's own
 ## "button", else the "_buttons" defaults ("next" / "close").
+##
+## A line may carry a "then" step that plays after it, before the next line:
+##   "set_flags": [...], "set_time": "night"  (applied here, right away)
+##   "card": "Later that night", "card_time": s  (a text card over a fade)
+##   "place": [x, y], "facing": "left"  (where the player stands afterwards)
+##   "fade_out": [ids], "fade_in": [ids], "fade_time": s  (world objects)
+## The runner applies the story effects when the line is left and hands the
+## step to the view (take_step) to show. Not a cutscene system: no movement.
 ## Plain data, no Nodes: the dialogue box only shows what this says.
 extends RefCounted
 
@@ -18,6 +27,8 @@ var index: int = -1
 var finished: bool = true
 ## Set when a finished entry asks for a fight: {"encounter": id, "win_flags": [...]}.
 var fight_request: Dictionary = {}
+## The "then" step of the line just left, until the view takes it.
+var step: Dictionary = {}
 
 
 func _init(story_flags) -> void:
@@ -39,7 +50,7 @@ static func select_entry(id: String, story_flags) -> Dictionary:
 	if id.begins_with("_"):
 		return {}
 	for e in GameData.get_json("dialogue").get(id, []):
-		if story_flags.meets(e.get("requires", []), e.get("unless", [])):
+		if story_flags.meets_rule(e):
 			return e
 	return {}
 
@@ -48,6 +59,7 @@ static func select_entry(id: String, story_flags) -> Dictionary:
 func start(id: String) -> bool:
 	interaction_id = id
 	fight_request = {}
+	step = {}
 	entry = select_entry(id, flags)
 	if entry.is_empty() or entry.get("lines", []).is_empty():
 		if not entry.is_empty():
@@ -99,6 +111,10 @@ static func initials_of(display_name: String) -> String:
 func advance() -> bool:
 	if finished:
 		return false
+	var then: Dictionary = entry["lines"][index].get("then", {})
+	if not then.is_empty():
+		apply_effects(then)
+		step = then.duplicate(true)
 	index += 1
 	if index < entry["lines"].size():
 		return true
@@ -106,9 +122,23 @@ func advance() -> bool:
 	return false
 
 
+## The step to show now ({} if none); taking it clears it.
+func take_step() -> Dictionary:
+	var s := step
+	step = {}
+	return s
+
+
+## Story effects of an entry or a step: "set_flags" and "set_time".
+func apply_effects(effects: Dictionary) -> void:
+	for f in effects.get("set_flags", []):
+		flags.set_flag(f)
+	if effects.has("set_time"):
+		flags.set_time_of_day(str(effects["set_time"]))
+
+
 func _finish() -> void:
 	finished = true
-	for f in entry.get("set_flags", []):
-		flags.set_flag(f)
+	apply_effects(entry)
 	if entry.has("start_fight"):
 		fight_request = {"encounter": str(entry["start_fight"]), "win_flags": entry.get("win_flags", []).duplicate()}
