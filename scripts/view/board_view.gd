@@ -3,11 +3,13 @@
 ## It never decides outcomes: everything comes from the event list.
 ## Geometry is authored for 60 px cells and scaled to the real cell size;
 ## text is drawn unscaled with a minimum size so it stays readable on phones.
-## Sprites from res://art/<sprite key>.png replace placeholders when present.
+## Sprites are looked up by key in the AssetCatalog (data/assets.json, falling
+## back to res://art/<sprite key>.png) and replace placeholders when present.
 extends Node2D
 
 const BattleState = preload("res://scripts/core/battle_state.gd")
 const GameData = preload("res://scripts/core/game_data.gd")
+const AssetCatalog = preload("res://scripts/core/asset_catalog.gd")
 
 const CELL := 60.0  # authoring cell size; real size = CELL * k
 const MIN_TEXT := 11.0
@@ -87,8 +89,8 @@ func _tex(key: String) -> Texture2D:
 	if key == "":
 		return null
 	if not _textures.has(key):
-		var path := "res://art/%s.png" % key
-		_textures[key] = load(path) if ResourceLoader.exists(path) else null
+		# Optional art: the code-drawn shapes are the placeholder, so no warning.
+		_textures[key] = AssetCatalog.try_texture(key, false)
 	return _textures[key]
 
 

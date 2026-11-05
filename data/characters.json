@@ -1,0 +1,4 @@
+{
+  "believer":  { "name": "Believer",  "color": "#4fb3a0", "sprite": "believer.sprite",  "portrait": "believer.portrait.neutral" },
+  "innkeeper": { "name": "Innkeeper", "color": "#d9884a", "sprite": "innkeeper.sprite", "portrait": "innkeeper.portrait.neutral" }
+}

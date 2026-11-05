@@ -1,0 +1,19 @@
+{
+  "_comment": "Asset keys -> file paths. Code and content use only the keys. A missing file shows a placeholder and logs a warning. Keys not listed here fall back to fallback_dir + <key>.png (the fight's sprite keys use this).",
+  "fallback_dir": "res://art/",
+  "paths": {
+    "town.tiles": "res://art/town/tiles.png",
+
+    "believer.sprite": "res://art/town/believer.png",
+    "believer.portrait.neutral": "res://art/portraits/believer_neutral.png",
+    "innkeeper.sprite": "res://art/town/innkeeper.png",
+    "innkeeper.portrait.neutral": "res://art/portraits/innkeeper_neutral.png",
+
+    "town.welcome_banner": "res://art/town/welcome_banner.png",
+    "town.letter": "res://art/town/letter.png",
+    "town.cellar_door": "res://art/town/cellar_door.png",
+    "town.tree": "res://art/town/tree.png",
+    "town.lamp": "res://art/town/lamp.png",
+    "town.crate": "res://art/town/crate.png"
+  }
+}

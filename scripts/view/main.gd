@@ -3,7 +3,12 @@
 ## to BoardView. One input model for mouse and touch:
 ##   tap to select (a hero, a move tile, a target) -> tap the same thing again to confirm.
 ## Nothing depends on hover or right-click; long-press or the Info button show details.
+## Started by the app with an encounter id; reports the result with
+## fight_finished(won) when it was launched from the town.
 extends Node2D
+
+signal fight_finished(won: bool)
+signal menu_requested
 
 const BattleState = preload("res://scripts/core/battle_state.gd")
 const Rules = preload("res://scripts/core/rules.gd")
@@ -28,6 +33,8 @@ var info_mode: bool = false  # taps only show details
 var end_armed: bool = false  # End Turn tapped once while heroes still had actions
 var undo_stack: Array = []
 var busy: bool = false
+var encounter_id: String = GameData.DEFAULT_ENCOUNTER
+var from_town: bool = false  # the end screen returns to town instead of replaying
 
 
 func _ready() -> void:
@@ -46,8 +53,18 @@ func _ready() -> void:
 	hud.end_btn.pressed.connect(end_turn)
 	hud.restart_btn.pressed.connect(restart)
 	hud.speed_btn.pressed.connect(toggle_speed)
-	hud.over_btn.pressed.connect(restart)
+	hud.over_btn.pressed.connect(_on_over_pressed)
+	hud.over_btn.text = "Back to town" if from_town else "Play again"
+	hud.menu_btn.visible = not from_town
+	hud.menu_btn.pressed.connect(func(): menu_requested.emit())
 	restart()
+
+
+func _on_over_pressed() -> void:
+	if from_town:
+		fight_finished.emit(state.phase == "won")
+	else:
+		restart()
 
 
 # =========================================================================
@@ -264,7 +281,7 @@ func undo() -> void:
 func restart() -> void:
 	if busy:
 		return
-	state = LevelLoader.build()
+	state = LevelLoader.build_encounter(encounter_id)
 	undo_stack.clear()
 	mode = "move"
 	pending = NO_CELL

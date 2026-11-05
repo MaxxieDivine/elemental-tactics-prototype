@@ -41,7 +41,8 @@ static func css_info() -> Dictionary:
 	return {"dpr": dpr, "insets": insets}
 
 
-## Sets the window's content scale and returns {"size": UI size, "insets": [t, r, b, l] in UI units}.
+## Sets the window's content scale and returns {"size": UI size, "insets": [t, r, b, l] in UI units,
+## "css_per_unit", "dpr"}.
 static func apply(window: Window) -> Dictionary:
 	var info := css_info()
 	var dpr: float = info["dpr"]
@@ -53,4 +54,4 @@ static func apply(window: Window) -> Dictionary:
 	if window.content_scale_size != ui:
 		window.content_scale_size = ui
 	var insets: Array = info["insets"].map(func(v): return v / s)
-	return {"size": Vector2(ui), "insets": insets, "css_per_unit": s}
+	return {"size": Vector2(ui), "insets": insets, "css_per_unit": s, "dpr": dpr}

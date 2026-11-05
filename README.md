@@ -6,7 +6,9 @@ A small Godot 4 prototype of one turn-based tactics fight. It exists to answer a
 
 You have three heroes, one each for water, lightning and fire, on a 10x10 grid. You fight five enemies that show their plans before they act. You set up combos: soak tiles and then electrify them, ignite oil next to an explosive barrel, or boil water into steam to block a sniper's sight. Then you watch the chain play out one step at a time.
 
-Everything is drawn with simple shapes. There's no story, art, audio or progression.
+Milestone 2 adds a **walkable town slice** in front of that fight: a small dock and town square where you tap to walk, talk to the innkeeper, read a banner and your letter, and open a humming cellar door that starts the fight. One clue changes what the innkeeper says, and winning changes the cellar door.
+
+Everything is drawn with simple placeholder shapes and generated tiles. There's no final art, audio, saves or progression.
 
 ## Play it
 
@@ -14,7 +16,20 @@ Everything is drawn with simple shapes. There's no story, art, audio or progress
 
 **In Godot:** install [Godot 4.3+](https://godotengine.org/download) (standard build, no .NET needed). In the Project Manager, choose **Import**, select `project.godot`, and press **F5**.
 
-## Controls
+The start screen has two buttons: **Town** (the walkable slice) and **Fight** (the fight on its own, for testing).
+
+## Town controls
+
+| Do this | To |
+|---|---|
+| Tap (or click) a tile | Walk there |
+| Tap a person or object | Walk next to it, face it, and talk / look |
+| Tap anywhere during dialogue | First tap shows the whole line, next tap goes on (or use the **Next** button) |
+| **Menu** | Back to the start screen (story flags are kept until you reload) |
+
+Try: read the banner, talk to the innkeeper, read your letter on the dock, talk to the innkeeper again, then tap the cellar door beside the inn. Win or lose, you come back to the town where you stood. After a win the door says something new.
+
+## Fight controls
 
 The same controls work for mouse and touch: **tap (or click) to select, then tap the same thing again to confirm.**
 
@@ -47,6 +62,15 @@ Each hero can **move once and act once per turn, in either order**. On desktop t
 
 ## Tuning
 
+### Town, story and art (no code changes)
+
+- **Dialogue:** `data/dialogue.json`. Each interaction id (`innkeeper`, `welcome_banner`, `letter`, `cellar_door`) has a list of entries; the first one whose `requires` flags are all set (and `unless` flags unset) plays. An entry can `set_flags` and `start_fight` (an encounter id) with `win_flags`.
+- **Names and colours:** `data/characters.json` for town speakers; `data/heroes.json` `name` for Tide, Volt and Ember.
+- **Town map:** `data/town.json`: the map rows and tile legend, player start, NPC/object/prop placements, `zoom`, walking `step_time` and dialogue `text_speed` (characters per second).
+- **Art:** `data/assets.json` maps keys (`believer.portrait.neutral`, `town.tiles`, ...) to files. Drop a PNG in `art/` and point its key at it. See `art/README.md` for formats. Missing files show a placeholder and log a warning.
+
+### Fight
+
 All numbers and the map live in `data/`:
 
 - `heroes.json`, `enemies.json`: HP, move, and which abilities each unit has
@@ -62,7 +86,7 @@ Optional art: put `art/<sprite key>.png` next to the project (keys are in the da
 ```sh
 godot --headless --path . --script res://tests/run_tests.gd
 ```
-This runs every rules test plus a UI smoke test that taps through the real scene in a phone layout and a desktop layout. It exits non-zero on failure.
+This runs every rules, story, town and asset test, a UI smoke test that taps through the fight in a phone layout and a desktop layout, and a flow test that plays the real app on a phone: town, dialogue, fight (loss and win), back to town, and the direct Fight option. It exits non-zero on failure.
 
 ## Web build and deployment
 
@@ -70,4 +94,4 @@ This runs every rules test plus a UI smoke test that taps through the real scene
 
 ## Status
 
-First playable prototype. It covers one fight on one map and runs on desktop and phone browsers. Planned scope is intentionally tiny: no levels, progression, loot, art, audio or saves.
+Milestone 2: one walkable town slice connected to one fight, on desktop and phone browsers. Scope is intentionally tiny: no saves, branching choices, quest log, party following, final art or audio.
