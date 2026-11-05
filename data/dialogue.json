@@ -39,19 +39,103 @@
     }
   ],
 
-  "cellar_door": [
+  "cellar_hatch": [
     {
-      "requires": ["won_first_fight"],
       "lines": [
-        { "speaker": "agador", "text": "It's quiet now. Somehow, that's worse." }
+        { "speaker": "agador", "text": "It's locked. Why is it humming?" }
+      ]
+    }
+  ],
+
+  "guest_book": [
+    {
+      "requires": ["read_letter"],
+      "lines": [
+        { "speaker": "agador", "text": "My name's already in here. I haven't signed anything." },
+        { "speaker": "agador", "text": "The ink's wet. Just like my letter." }
       ]
     },
     {
       "lines": [
-        { "speaker": "agador", "text": "There's a door under the inn. Why is it humming?" }
+        { "speaker": "agador", "text": "My name's already in here. I haven't signed anything." }
+      ]
+    }
+  ],
+
+  "key_board": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "Keys for Rooms 2 and 3. Nothing for Room 4." }
+      ]
+    }
+  ],
+
+  "fireplace": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "It's the coziest room I've ever seen. I don't trust it." }
+      ]
+    }
+  ],
+
+  "arcade": [
+    {
+      "requires": ["won_first_fight"],
+      "lines": [
+        { "speaker": "agador", "text": "High score: Agador. I never entered my name." },
+        { "speaker": "agador", "text": "One more game.", "button": "Insert coin" }
       ],
       "start_fight": "first_fight",
       "win_flags": ["won_first_fight"]
+    },
+    {
+      "lines": [
+        { "speaker": "agador",    "text": "Who put this in an inn?" },
+        { "speaker": "innkeeper", "text": "Put what, dear?" },
+        { "speaker": "agador",    "text": "The screen says to insert a coin.", "button": "Insert coin" }
+      ],
+      "start_fight": "first_fight",
+      "win_flags": ["won_first_fight"]
+    }
+  ],
+
+  "room_1_key": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "A key to a room I never booked." }
+      ]
+    }
+  ],
+
+  "room_1_bed": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "Turned down, with a mint on the pillow. Very welcoming. Very unsettling." }
+      ]
+    }
+  ],
+
+  "room_2_door": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "Locked. The card says Reserved, but not for whom." }
+      ]
+    }
+  ],
+
+  "room_3_door": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "Also reserved. Business must be booming." }
+      ]
+    }
+  ],
+
+  "room_4_door": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "Locked, with no key on the board. There's a light on under the door." }
+      ]
     }
   ]
 }

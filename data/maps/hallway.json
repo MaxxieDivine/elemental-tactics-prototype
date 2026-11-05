@@ -1,0 +1,29 @@
+{
+  "name": "Upstairs hallway",
+  "map": [
+    "^^^^^^^^^^^^^^^",
+    "^|E||E||E||E|S^",
+    "^_____________^",
+    "^_rrrrrrrrrrr_^",
+    "^^^^^^^^^^^^^^^"
+  ],
+
+  "npcs": [],
+
+  "objects": [
+    { "id": "room_2_door", "name": "Room 2", "sprite": "inn.door_reserved", "shape": "door_reserved", "color": "#f4efe1", "cell": [5, 1],  "interaction": "room_2_door" },
+    { "id": "room_3_door", "name": "Room 3", "sprite": "inn.door_reserved", "shape": "door_reserved", "color": "#f4efe1", "cell": [8, 1],  "interaction": "room_3_door" },
+    { "id": "room_4_door", "name": "Room 4", "sprite": "inn.door_light",    "shape": "door_light",    "color": "#ffd76a", "cell": [11, 1], "interaction": "room_4_door" }
+  ],
+
+  "props": [
+    { "sprite": "inn.lantern", "shape": "lantern", "color": "#f2b84b", "cell": [4, 1] },
+    { "sprite": "inn.lantern", "shape": "lantern", "color": "#f2b84b", "cell": [10, 1] },
+    { "sprite": "inn.flowers", "shape": "flowers", "color": "#f28fb0", "cell": [1, 2] }
+  ],
+
+  "exits": [
+    { "id": "room_1_door", "name": "Room 1",      "cell": [2, 1],  "to": "room_1", "arrive": [3, 4], "facing": "up" },
+    { "id": "stairs_down", "name": "Stairs down", "cell": [13, 1], "to": "lobby",  "arrive": [8, 2], "facing": "down" }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "name": "Inn lounge",
+  "map": [
+    "^^^^^^^^^",
+    "^n||||n|^",
+    "^_______^",
+    "^_______^",
+    "^__rrr__d",
+    "^__rrr__^",
+    "^_______^",
+    "^^^^^^^^^"
+  ],
+
+  "npcs": [],
+
+  "objects": [
+    { "id": "fireplace", "name": "Fireplace", "sprite": "inn.fireplace", "shape": "fireplace", "color": "#9a8f86", "cell": [4, 1], "interaction": "fireplace" },
+    { "id": "arcade",    "name": "Arcade",    "sprite": "inn.arcade",    "shape": "arcade",    "color": "#2a1f4a", "cell": [1, 2], "interaction": "arcade", "stand": [[1, 3], [2, 2]] }
+  ],
+
+  "props": [
+    { "sprite": "inn.armchair",   "shape": "armchair",   "color": "#9c2f3e", "cell": [3, 3] },
+    { "sprite": "inn.armchair",   "shape": "armchair",   "color": "#9c2f3e", "cell": [5, 3] },
+    { "sprite": "inn.side_table", "shape": "side_table", "color": "#f28fb0", "cell": [7, 2] },
+    { "sprite": "inn.lantern",    "shape": "lantern",    "color": "#f2b84b", "cell": [2, 1] },
+    { "sprite": "inn.lantern",    "shape": "lantern",    "color": "#f2b84b", "cell": [7, 1] }
+  ],
+
+  "exits": [
+    { "id": "lobby_doorway", "name": "Lobby", "cell": [8, 4], "to": "lobby", "arrive": [1, 4], "facing": "right" }
+  ]
+}

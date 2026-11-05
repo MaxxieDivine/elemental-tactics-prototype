@@ -1,0 +1,38 @@
+{
+  "name": "Inn lobby",
+  "map": [
+    "^^^^^^^^^^",
+    "^|n||||nU^",
+    "^________^",
+    "^________^",
+    "d________^",
+    "^__rrrr__^",
+    "^__rrrr__^",
+    "^________^",
+    "^^^^vv^^^^"
+  ],
+
+  "npcs": [
+    { "id": "innkeeper", "character": "innkeeper", "cell": [3, 2], "facing": "down", "interaction": "innkeeper", "stand": [[3, 4], [2, 4], [4, 4]] }
+  ],
+
+  "objects": [
+    { "id": "guest_book", "name": "Guest book", "sprite": "inn.guest_book", "shape": "desk_book", "color": "#7a3b2e", "cell": [4, 3], "interaction": "guest_book", "stand": [[4, 4], [5, 3]] },
+    { "id": "key_board",  "name": "Key board",  "sprite": "inn.key_board",  "shape": "key_board", "color": "#8a5a32", "cell": [5, 1], "interaction": "key_board" }
+  ],
+
+  "props": [
+    { "sprite": "inn.desk",    "shape": "desk",    "color": "#7a3b2e", "cell": [2, 3] },
+    { "sprite": "inn.desk",    "shape": "desk",    "color": "#7a3b2e", "cell": [3, 3] },
+    { "sprite": "inn.lantern", "shape": "lantern", "color": "#f2b84b", "cell": [3, 1] },
+    { "sprite": "inn.lantern", "shape": "lantern", "color": "#f2b84b", "cell": [6, 1] },
+    { "sprite": "inn.flowers", "shape": "flowers", "color": "#f28fb0", "cell": [1, 2] },
+    { "sprite": "inn.flowers", "shape": "flowers", "color": "#f6d55c", "cell": [8, 7] }
+  ],
+
+  "exits": [
+    { "id": "lobby_front_door", "name": "Front door",  "cells": [[4, 8], [5, 8]], "to": "town",    "arrive": [6, 4],  "facing": "down" },
+    { "id": "lounge_doorway",   "name": "Lounge",      "cell": [0, 4],            "to": "lounge",  "arrive": [7, 4],  "facing": "left" },
+    { "id": "stairs_up",        "name": "Stairs up",   "cell": [8, 1],            "to": "hallway", "arrive": [13, 2], "facing": "down" }
+  ]
+}
