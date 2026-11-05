@@ -249,7 +249,7 @@ func _build_ui() -> void:
 	fade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(fade)
-	# Transition card ("Later that night"): text over the fade. While it is
+	# Transition card: a line of story text over the fade. While it is
 	# up, a tap or click anywhere skips it.
 	card_catch = Control.new()
 	card_catch.set_anchors_preset(Control.PRESET_FULL_RECT)

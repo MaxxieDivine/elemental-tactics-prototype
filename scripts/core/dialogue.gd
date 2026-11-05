@@ -7,7 +7,7 @@
 ##
 ## A line may carry a "then" step that plays after it, before the next line:
 ##   "set_flags": [...], "set_time": "night"  (applied here, right away)
-##   "card": "Later that night", "card_time": s  (a text card over a fade)
+##   "card": "...", "card_time": s  (a short text card over a fade)
 ##   "place": [x, y], "facing": "left"  (where the player stands afterwards)
 ##   "fade_out": [ids], "fade_in": [ids], "fade_time": s  (world objects)
 ## The runner applies the story effects when the line is left and hands the

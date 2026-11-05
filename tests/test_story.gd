@@ -23,7 +23,7 @@ func test_dialogue_data_is_well_formed() -> void:
 		var entries: Array = GameData.get_json("dialogue")[id]
 		check(not entries.is_empty(), "%s has entries" % id)
 		# The last entry should always play, so an interaction never goes silent.
-		check(entries[-1].get("requires", []).is_empty(), "%s ends with an entry that needs no flags" % id)
+		check(entries[-1].get("requires", []).is_empty() and not entries[-1].has("time_of_day"), "%s ends with an entry that needs no flags or time" % id)
 		for e in entries:
 			for l in e.get("lines", []):
 				check(chars.has(l.get("speaker", "")), "%s: speaker '%s' is in characters.json" % [id, l.get("speaker", "")])
@@ -49,7 +49,7 @@ func test_dialogue_advances_line_by_line() -> void:
 	var f = StoryFlags.new()
 	var d = Dialogue.new(f)
 	check(d.start("innkeeper"), "innkeeper dialogue starts")
-	var expected := _data_texts("innkeeper", 2)
+	var expected := _data_texts("innkeeper", 3)
 	var seen: Array = []
 	var speakers: Array = []
 	var guard := 0
@@ -84,9 +84,9 @@ func test_letter_sets_read_letter_only_at_the_end() -> void:
 
 func test_innkeeper_changes_after_read_letter() -> void:
 	var f = StoryFlags.new()
-	eq(_texts("innkeeper", f), _data_texts("innkeeper", 2), "default innkeeper dialogue")
+	eq(_texts("innkeeper", f), _data_texts("innkeeper", 3), "default innkeeper dialogue")
 	f.set_flag("read_letter")
-	eq(_texts("innkeeper", f), _data_texts("innkeeper", 1), "innkeeper dialogue after read_letter")
+	eq(_texts("innkeeper", f), _data_texts("innkeeper", 2), "innkeeper dialogue after read_letter")
 
 
 func _finish(d) -> void:

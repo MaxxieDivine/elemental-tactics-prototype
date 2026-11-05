@@ -3,7 +3,10 @@
 ## -> arcade fight (loss, win, replay) -> back beside the arcade, plus the
 ## letter changing the innkeeper and the guest book, the locked hatch and
 ## doors, the Room 1 key bringing the new guest into the lobby, their scene,
-## the inn changing afterwards, and the direct Fight option. Run by run_tests.gd.
+## the inn changing afterwards, the first night (sleep, a card, the inn and
+## town at night, the arcade at night, the dock trigger and the ferry, the
+## night letter, sleep again, morning), and the direct Fight option. Run by
+## run_tests.gd.
 extends "res://tests/test_base.gd"
 
 const GameSession = preload("res://scripts/core/game_session.gd")
@@ -177,7 +180,7 @@ func guest_scene() -> void:
 		check(not app.session.flags.has("met_new_guest") or not box.is_open(), "met_new_guest is only set at the end")
 		box.tap()
 		box.tap()
-	var entry: Dictionary = GameData.get_json("dialogue")["new_guest"][1]
+	var entry: Dictionary = GameData.get_json("dialogue")["new_guest"][2]
 	eq(texts, entry["lines"].map(func(l): return l["text"]), "the full lobby conversation, from data")
 	eq(speakers, entry["lines"].map(func(l): return l["speaker"]), "three speakers take turns")
 	eq(names[0], GameData.get_json("characters")["new_guest"]["name"], "??? display name from data")
@@ -196,6 +199,194 @@ func guest_scene() -> void:
 	check(town().actors.has("innkeeper"), "the innkeeper stays in the lobby")
 	eq(app.session.spot()["map"], "lobby", "Agador is still in the lobby")
 	await shot("town_11_after_scene")
+
+
+## Waits while a dialogue step (fade, card, object fade) plays. Returns
+## {"peak": highest screen fade, "card": card text seen ("" if none)}.
+func wait_step(skip_card: bool = false) -> Dictionary:
+	var box = town().dialogue_box
+	var out := {"peak": 0.0, "card": ""}
+	var guard := 0
+	while box.busy and guard < 2000:
+		await frames(1)
+		out["peak"] = maxf(out["peak"], town().fade.color.a)
+		if town().card_showing():
+			if out["card"] == "":
+				await shot("town_night_card_" + town().card.text.to_lower().replace(" ", "_"))
+			out["card"] = town().card.text
+			if skip_card:
+				var tap := InputEventMouseButton.new()
+				tap.button_index = MOUSE_BUTTON_LEFT
+				tap.pressed = false
+				town().card_catch.gui_input.emit(tap)  # a tap skips the card
+		guard += 1
+	check(not box.busy, "the step finished")
+	return out
+
+
+## Uses the Room 1 bed and sleeps: the line's button says Sleep, the screen
+## fades, a card shows, and the next line starts at the data's place.
+func sleep_in_bed(entry: int, card_text: String, time_after: String, flag: String, skip_card: bool) -> void:
+	var lines: Array = GameData.get_json("dialogue")["room_1_bed"][entry]["lines"]
+	await use("room_1_bed")
+	var box = town().dialogue_box
+	check(box.is_open(), "the bed starts its dialogue")
+	eq(box.text.text, lines[0]["text"], "bed line before sleeping")
+	box.tap()
+	eq(box.next_btn.text, "Sleep", "the button says Sleep")
+	check(not app.session.flags.has(flag), "%s not set before sleeping" % flag)
+	box.tap()
+	check(box.busy and town().transitioning, "sleeping starts a step")
+	box.tap()  # taps during the step are ignored
+	town().tap_cell(town().player_cell + Vector2i(0, 1))
+	eq(town().path, [], "map taps are ignored during the step")
+	var seen: Dictionary = await wait_step(skip_card)
+	check(seen["peak"] > 0.9, "the screen fades out to sleep")
+	eq(seen["card"], card_text, "the transition card shows its data text")
+	check(not town().card_showing(), "the card is gone afterwards")
+	eq(town().fade.color.a, 0.0, "the fade clears")
+	eq(app.session.flags.time_of_day(), time_after, "time of day after sleeping")
+	check(app.session.flags.has(flag), "sleeping sets %s" % flag)
+	eq(town().time_of_day, time_after, "the room is rebuilt for the new time")
+	var step: Dictionary = lines[0]["then"]
+	eq(town().player_cell, TownMap.cell_of(step["place"]), "Agador wakes where the data places him")
+	eq(town().player.facing, step["facing"], "facing from data")
+	check(box.is_open(), "the dialogue carries on after the step")
+	eq(box.text.text, lines[1]["text"], "the line after waking")
+	read_dialogue("wake up")
+	check(not box.is_open(), "the bed dialogue closes")
+
+
+func night_lighting(label: String, outdoor: bool) -> void:
+	var g: Color = town().ground.modulate
+	check(g != Color.WHITE, "%s: the ground is tinted at night" % label)
+	check(town().player.modulate.get_luminance() > g.get_luminance(), "%s: Agador stays brighter than the ground" % label)
+	if outdoor:
+		check(g.get_luminance() < 0.5, "%s: outdoors is clearly dark" % label)
+		check(town().lighting.count("add") >= 4, "%s: warm pools at lamps, windows and the door" % label)
+	else:
+		check(g.get_luminance() > 0.7, "%s: the inn is only slightly dimmer" % label)
+		check(town().lighting.count() >= 1, "%s: lanterns glow" % label)
+		if town().map.rows.any(func(r): return r.contains("n")):
+			check(town().lighting.count("mix") >= 1, "%s: dark window panes" % label)
+
+
+func day_lighting(label: String) -> void:
+	eq(town().ground.modulate, Color.WHITE, "%s: day lighting has no tint" % label)
+	eq(town().lighting.count(), 0, "%s: no light pools in the day" % label)
+
+
+## The first night, from the Room 1 bed to the next morning.
+func first_night() -> void:
+	await go("stairs_up")
+	await go("room_1_door")
+	day_lighting("Room 1 before the night")
+	town().card_time = 0.4
+	await sleep_in_bed(2, "Later that night", "night", "first_night_started", false)
+	night_lighting("Room 1", false)
+	await shot("town_13_room_1_night")
+	await talk("room_1_bed", "room_1_bed", 1, "bed before the letter")
+	check(app.session.flags.time_of_day() == "night", "the bed will not sleep yet")
+
+	await go("room_1_exit")
+	night_lighting("hallway", false)
+	await go("stairs_down")
+	check(not town().actors.has("innkeeper") and not town().map.targets.has("innkeeper"), "the innkeeper is away at night")
+	await shot("town_14_lobby_night")
+	await go("lounge_doorway")
+	check(town().actors.has("new_guest"), "??? stays beside the arcade at night")
+	await talk("new_guest", "new_guest", 0, "??? at night")
+
+	# The arcade works at night and brings you back to the night.
+	var spot: Dictionary = app.session.spot()
+	var fight = await arcade_to_fight(0, "arcade at night")
+	eq(app.session.flags.time_of_day(), "night", "night during the fight")
+	await finish_fight(fight, false)
+	eq(town().map_id, "lounge", "back in the lounge after a night fight")
+	eq(town().time_of_day, "night", "the lounge is still at night after the fight")
+	night_lighting("lounge after the fight", false)
+	check(town().actors.has("new_guest"), "??? is still there after the fight")
+	fight = await arcade_to_fight(0, "arcade at night, win")
+	await finish_fight(fight, true)
+	eq(app.session.flags.time_of_day(), "night", "a won fight keeps the night")
+
+	await go("lobby_doorway")
+	await go("lobby_front_door")
+	eq(town().map_id, "town", "the front door still leads outside at night")
+	night_lighting("town", true)
+	check(town().actors.has("ferry_silhouette"), "the ferry is offshore")
+	check(not town().map.targets.has("ferry_silhouette"), "the ferry is scenery, not a tap target")
+	check(not town().actors.has("letter") and not town().actors.has("night_letter"), "no letter on the dock yet")
+	await shot("town_15_town_night")
+	await talk("welcome_banner", "welcome_banner", 0, "banner at night")
+	await talk("cellar_hatch", "cellar_hatch", 0, "hatch at night")
+
+	# The end of the dock.
+	var trig: Dictionary = town().map.triggers[0]
+	var trig_cells: Array = TownMap.exit_cells_of(trig)
+	var flags_before: int = app.session.flags.names().size()
+	await tap_cell(Vector2i(6, 16))
+	var box = town().dialogue_box
+	check(box.is_open(), "walking onto the end of the dock starts the trigger")
+	check(trig_cells.has(town().player_cell), "Agador stops on the first trigger cell")
+	eq(town().path, [], "the walk stops at the trigger")
+	eq(town().player.facing, trig["facing"], "Agador turns toward the water")
+	check(app.session.flags.has_run(trig["id"]), "the trigger is remembered as run")
+	await frames(40)  # let the camera settle above the box
+	await shot("town_16_ferry")
+	var lines: Array = GameData.get_json("dialogue")[trig["interaction"]][0]["lines"]
+	eq(box.text.text, lines[0]["text"], "first dock line")
+	box.tap()
+	box.tap()
+	check(box.busy, "the ferry starts fading")
+	var mid := 0
+	while box.busy and mid < 2000:
+		await frames(1)
+		if town().actors.has("ferry_silhouette"):
+			check(town().fade.color.a < 0.01, "the screen does not fade while the ferry does")
+		mid += 1
+	check(not town().actors.has("ferry_silhouette"), "the ferry is gone")
+	check(app.session.flags.has("saw_ferry"), "saw_ferry is set")
+	check(town().actors.has("night_letter"), "the new letter is on the dock")
+	eq(town().actors.get("night_letter").modulate.a if town().actors.has("night_letter") else 0.0, 1.0, "the letter has faded in")
+	eq(town().map.cell_of_thing("night_letter"), TownMap.cell_of(_raw_cell("town", "letter")), "in the old letter's spot")
+	eq(box.text.text, lines[1]["text"], "second dock line")
+	read_dialogue("dock")
+	await shot("town_17_night_letter")
+	check(app.session.flags.names().size() == flags_before + 1, "the dock adds only saw_ferry")
+
+	# Walking off and back on does not run it again.
+	await tap_cell(Vector2i(6, 13))
+	await tap_cell(trig_cells[0])
+	check(not box.is_open(), "the trigger runs only once")
+	await talk("night_letter", "night_letter", 0, "night letter")
+	check(app.session.flags.has("read_night_letter"), "reading it sets read_night_letter")
+
+	# Back to bed; the morning.
+	await go("inn_front_door")
+	await go("stairs_up")
+	await go("room_1_door")
+	await sleep_in_bed(0, "The next morning", "day", "first_night_over", true)
+	day_lighting("Room 1 in the morning")
+	await shot("town_18_morning")
+	await talk("room_1_bed", "room_1_bed", 3, "bed in the morning")
+	await go("room_1_exit")
+	await go("stairs_down")
+	check(town().actors.has("innkeeper"), "the innkeeper is back in the morning")
+	await talk("innkeeper", "innkeeper", 0, "innkeeper in the morning")
+	await go("lobby_front_door")
+	day_lighting("town in the morning")
+	check(town().actors.has("letter"), "the old letter is back")
+	check(not town().actors.has("night_letter") and not town().actors.has("ferry_silhouette"), "no ferry or night letter in the morning")
+	await talk("welcome_banner", "welcome_banner", 1, "banner in the morning")
+	await shot("town_19_town_morning")
+
+
+func _raw_cell(map_id: String, thing_id: String) -> Array:
+	for t in TownMap.map_def(map_id)["objects"]:
+		if t["id"] == thing_id:
+			return t["cell"]
+	return [-1, -1]
 
 
 func finish_fight(fight, won: bool) -> void:
@@ -255,7 +446,7 @@ func run(t: SceneTree, shots: String) -> void:
 	eq(town().player_cell, dest, "tapping water does not move")
 
 	# --- Banner -------------------------------------------------------------------
-	await talk("welcome_banner", "welcome_banner", 0, "banner")
+	await talk("welcome_banner", "welcome_banner", 1, "banner")
 	check(not box.is_open(), "dialogue closes after the last line")
 	await shot("town_02_banner")
 
@@ -265,7 +456,7 @@ func run(t: SceneTree, shots: String) -> void:
 	eq(town().player_cell.y, hatch.y, "Agador stands beside the hatch, not in front of it")
 	check(town().actors["cellar_hatch"].is_processing(), "the hatch animates (humming)")
 	await shot("town_03_hatch")
-	eq(read_dialogue("hatch"), data_lines("cellar_hatch", 0), "hatch line")
+	eq(read_dialogue("hatch"), data_lines("cellar_hatch", 1), "hatch line")
 	await frames(3)
 	check(town() != null and town().has_method("tap_cell"), "the hatch does not start a fight")
 	# Taps on the map are ignored while a dialogue is open.
@@ -280,7 +471,7 @@ func run(t: SceneTree, shots: String) -> void:
 	eq(town().map_id, "lobby", "the inn door leads into the lobby")
 	check(not town().actors.has("new_guest") and not town().map.targets.has("new_guest"), "??? is not in the lobby before the Room 1 key")
 	await shot("town_04_lobby")
-	await talk("innkeeper", "innkeeper", 2, "innkeeper default")
+	await talk("innkeeper", "innkeeper", 3, "innkeeper default")
 	eq(town().actors["innkeeper"].facing, TownMap.facing_toward(town().map.cell_of_thing("innkeeper"), town().player_cell), "innkeeper turns to face the player")
 	await talk("guest_book", "guest_book", 2, "guest book before the letter")
 	await talk("key_board", "key_board", 0, "key board")
@@ -333,7 +524,7 @@ func run(t: SceneTree, shots: String) -> void:
 	eq(town().map_id, "hallway", "locked doors keep you in the hallway")
 	await go("room_1_door")
 	await talk("room_1_key", "room_1_key", 0, "room 1 key")
-	await talk("room_1_bed", "room_1_bed", 0, "room 1 bed")
+	await talk("room_1_bed", "room_1_bed", 3, "room 1 bed")
 	await shot("town_09_room_1")
 	check(app.session.flags.has("found_room_key"), "the Room 1 key sets found_room_key")
 	await go("room_1_exit")
@@ -347,13 +538,13 @@ func run(t: SceneTree, shots: String) -> void:
 	await talk("letter", "letter", 0, "letter")
 	check(app.session.flags.has("read_letter"), "reading the letter sets read_letter")
 	await go("inn_front_door")
-	await talk("innkeeper", "innkeeper", 1, "innkeeper after the letter")
+	await talk("innkeeper", "innkeeper", 2, "innkeeper after the letter")
 	await talk("guest_book", "guest_book", 1, "guest book after the letter")
 	check(town().actors.has("new_guest") and not town().pacing.is_empty(), "??? is still pacing after Agador walked around them")
 
 	# --- The second guest's scene ----------------------------------------------------------
 	await guest_scene()
-	await talk("innkeeper", "innkeeper", 0, "innkeeper after the scene")
+	await talk("innkeeper", "innkeeper", 1, "innkeeper after the scene")
 	await talk("guest_book", "guest_book", 0, "guest book after the scene")
 	await talk("key_board", "key_board", 0, "key board unchanged after the scene")
 	await go("lounge_doorway")
@@ -363,7 +554,7 @@ func run(t: SceneTree, shots: String) -> void:
 	check(town().pacing.is_empty() and town().map.pacers.is_empty(), "??? no longer paces")
 	check(not town().map.targets["arcade"]["stand"].has(town().map.cell_of_thing("new_guest")), "??? does not stand where the arcade is used from")
 	await shot("town_12_lounge_guest")
-	await talk("new_guest", "new_guest", 0, "??? at the arcade")
+	await talk("new_guest", "new_guest", 1, "??? at the arcade")
 	await talk("fireplace", "fireplace", 0, "fireplace unchanged after the scene")
 	fight = await arcade_to_fight(0, "arcade after the scene")
 	await finish_fight(fight, true)
@@ -385,6 +576,9 @@ func run(t: SceneTree, shots: String) -> void:
 	app.screen.town_btn.pressed.emit()
 	await fresh_town()
 	eq(town().current_spot(), before, "Town resumes where the player left off")
+
+	# --- The first night ---------------------------------------------------------------
+	await first_night()
 
 	# --- Long text fits the phone box -------------------------------------------
 	var longest := ""
