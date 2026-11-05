@@ -1,8 +1,17 @@
 {
-  "_comment": "Interaction id -> entries. Entries are checked top to bottom: the first entry whose 'requires' flags are all set (and whose 'unless' flags are all unset) plays. Optional on finish: 'set_flags', 'start_fight' (encounter id) with 'win_flags'. A line may set 'portrait' to another asset key, and 'button' to the label of its action button (else the _buttons defaults: 'next' on a middle line, 'close' on the last, 'skip' while typing).",
+  "_comment": "Interaction id -> entries. Entries are checked top to bottom: the first entry whose 'requires' flags are all set (and whose 'unless' flags are all unset) plays. Optional on finish: 'set_flags', 'start_fight' (encounter id) with 'win_flags'. A line may set 'portrait' to another asset key, and 'button' to the label of its action button (else the _buttons defaults: 'next' on a middle line, 'close' on the last, 'skip' while typing). An entry may also require a 'time_of_day' ('night'). A line's 'then' plays after it, before the next line: 'set_flags', 'set_time' ('day'/'night'), 'card' (text over a fade, 'card_time' seconds), 'place' [x, y] + 'facing' (where Agador stands after the fade), 'fade_out' / 'fade_in' (world object ids, 'fade_time' seconds).",
   "_buttons": { "next": "Next", "close": "Close", "skip": "Skip" },
 
   "innkeeper": [
+    {
+      "requires": ["first_night_over"],
+      "lines": [
+        { "speaker": "agador",    "text": "I saw the ferry last night." },
+        { "speaker": "innkeeper", "text": "The ferry will be back any day now." },
+        { "speaker": "agador",    "text": "It was here." },
+        { "speaker": "innkeeper", "text": "Any day now." }
+      ]
+    },
     {
       "requires": ["met_new_guest"],
       "lines": [
@@ -30,6 +39,12 @@
 
   "welcome_banner": [
     {
+      "time_of_day": "night",
+      "lines": [
+        { "speaker": "agador", "text": "Even in the dark, it still says Heros." }
+      ]
+    },
+    {
       "lines": [
         { "speaker": "agador", "text": "'Welcome, Heros.' Well, it's the thought that counts." }
       ]
@@ -47,6 +62,12 @@
   ],
 
   "cellar_hatch": [
+    {
+      "time_of_day": "night",
+      "lines": [
+        { "speaker": "agador", "text": "It's louder at night." }
+      ]
+    },
     {
       "lines": [
         { "speaker": "agador", "text": "It's locked. Why is it humming?" }
@@ -123,6 +144,28 @@
 
   "room_1_bed": [
     {
+      "requires": ["first_night_started", "read_night_letter"], "unless": ["first_night_over"], "time_of_day": "night",
+      "lines": [
+        { "speaker": "agador", "text": "I won't sleep, but I should try.", "button": "Sleep",
+          "then": { "card": "The next morning", "set_time": "day", "set_flags": ["first_night_over"], "place": [2, 3], "facing": "left" } },
+        { "speaker": "agador", "text": "Morning. At least the sun still works." }
+      ]
+    },
+    {
+      "requires": ["first_night_started"], "unless": ["first_night_over"], "time_of_day": "night",
+      "lines": [
+        { "speaker": "agador", "text": "Not until I find out what that bell was." }
+      ]
+    },
+    {
+      "requires": ["met_new_guest"], "unless": ["first_night_started"],
+      "lines": [
+        { "speaker": "agador", "text": "It's been a long day.", "button": "Sleep",
+          "then": { "card": "Later that night", "set_time": "night", "set_flags": ["first_night_started"], "place": [2, 3], "facing": "left" } },
+        { "speaker": "agador", "text": "Was that a bell?" }
+      ]
+    },
+    {
       "lines": [
         { "speaker": "agador", "text": "Turned down, with a mint on the pillow. Very welcoming. Very unsettling." }
       ]
@@ -144,6 +187,13 @@
   ],
 
   "new_guest": [
+    {
+      "requires": ["first_night_started"], "unless": ["first_night_over"], "time_of_day": "night",
+      "lines": [
+        { "speaker": "agador",    "text": "Did you hear that bell?" },
+        { "speaker": "new_guest", "text": "What bell?" }
+      ]
+    },
     {
       "requires": ["met_new_guest"],
       "lines": [
@@ -179,6 +229,26 @@
       "lines": [
         { "speaker": "agador", "text": "Locked, with no key on the board. There's a light on under the door." }
       ]
+    }
+  ],
+
+  "dock_end_trigger": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "The ferry? At this hour?",
+          "then": { "fade_out": ["ferry_silhouette"], "set_flags": ["saw_ferry"], "fade_in": ["night_letter"] } },
+        { "speaker": "agador", "text": "Where did it go?" }
+      ]
+    }
+  ],
+
+  "night_letter": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "Another letter. The ink's still wet." },
+        { "speaker": "agador", "text": "'See you Tuesday.'" }
+      ],
+      "set_flags": ["read_night_letter"]
     }
   ]
 }

@@ -20,9 +20,9 @@ const FRAMES := ["down", "left", "right", "up"]
 const SKIN := Color("#f1c9a5")
 const INK := Color("#1d1b24")
 ## Placeholder shapes that loop a small animation.
-const ANIMATED := ["hatch", "arcade", "fireplace", "door_light", "lantern"]
+const ANIMATED := ["hatch", "arcade", "fireplace", "door_light", "lantern", "ferry"]
 ## Shapes drawn without a ground shadow (on walls, flat, or invisible).
-const NO_SHADOW := ["hatch", "none", "lantern", "key_board", "fireplace", "door_reserved", "door_light", "door_name"]
+const NO_SHADOW := ["hatch", "none", "lantern", "key_board", "fireplace", "door_reserved", "door_light", "door_name", "ferry"]
 ## Moods with a drawn placeholder mark (others show the generic one).
 const MOODS := ["upset"]
 const ANIM_FPS := 12.0
@@ -188,6 +188,8 @@ func _draw_object() -> void:
 			pass  # an invisible blocker (e.g. the head end of the bed)
 		"arcade":
 			_draw_arcade()
+		"ferry":
+			_draw_ferry()
 		"fireplace":
 			_draw_fireplace()
 		"lantern":
@@ -326,6 +328,31 @@ func _draw_hatch() -> void:
 		var r := 5.0 + ph * 7.0
 		draw_arc(Vector2(0, -6), r, -0.5, 0.5, 6, col, 1.0)
 		draw_arc(Vector2(0, -6), r, PI - 0.5, PI + 0.5, 6, col, 1.0)
+
+
+## A ferry offshore at night: a dark silhouette with a faint moonlit rim so
+## it reads against dark water, one dim lantern on the mast, bobbing gently.
+func _draw_ferry() -> void:
+	var bob := roundf(_pulse(3.2))
+	var o := Vector2(0, bob)
+	var rim := color.lightened(0.3)
+	var hull := PackedVector2Array([Vector2(-15, -7), Vector2(15, -7), Vector2(12, 0), Vector2(-12, 0)])
+	for i in hull.size():
+		hull[i] += o
+	draw_colored_polygon(hull, color)
+	draw_line(Vector2(-15, -7) + o, Vector2(15, -7) + o, rim, 1.0)  # deck edge
+	draw_rect(Rect2(Vector2(-10, -14) + o, Vector2(14, 7)), color)  # cabin
+	draw_line(Vector2(-10, -14) + o, Vector2(4, -14) + o, rim, 1.0)
+	for x in [-8, -4, 0]:
+		draw_rect(Rect2(Vector2(x, -12) + o, Vector2(2, 2)), color.lightened(0.12))  # dark portholes
+	draw_rect(Rect2(Vector2(-6, -20) + o, Vector2(3, 6)), color)  # funnel
+	draw_line(Vector2(5, -24) + o, Vector2(5, -7) + o, color.lightened(0.08), 1.0)  # mast
+	var lamp := 0.55 + 0.25 * _pulse(2.4)
+	draw_rect(Rect2(Vector2(4, -18) + o, Vector2(3, 3)), Color(1.0, 0.82, 0.45, lamp))  # the one dim lantern
+	# Water lapping at the hull.
+	var ph := fmod(t * 0.8, 1.0)
+	draw_line(Vector2(-14 - ph * 2, 1), Vector2(-9, 1), Color(0.6, 0.7, 1.0, 0.35), 1.0)
+	draw_line(Vector2(9, 1), Vector2(14 + ph * 2, 1), Color(0.6, 0.7, 1.0, 0.35), 1.0)
 
 
 ## An arcade cabinet that does not belong in a cozy inn: neon marquee,

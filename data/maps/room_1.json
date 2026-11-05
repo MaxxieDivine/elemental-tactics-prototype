@@ -1,5 +1,6 @@
 {
   "name": "Room 1",
+  "lighting": "inn",
   "map": [
     "^^^^^^^",
     "^|n|n|^",
@@ -18,7 +19,7 @@
 
   "props": [
     { "shape": "none", "cell": [1, 2] },
-    { "sprite": "inn.lantern", "shape": "lantern", "color": "#f2b84b", "cell": [3, 1] },
+    { "sprite": "inn.lantern", "shape": "lantern", "glow": "lantern", "color": "#f2b84b", "cell": [3, 1] },
     { "sprite": "inn.flowers", "shape": "flowers", "color": "#f6d55c", "cell": [5, 4] }
   ],
 

@@ -1,5 +1,6 @@
 {
   "name": "Upstairs hallway",
+  "lighting": "inn",
   "map": [
     "^^^^^^^^^^^^^^^",
     "^|E||E||E||E|S^",
@@ -20,8 +21,8 @@
   ],
 
   "props": [
-    { "sprite": "inn.lantern", "shape": "lantern", "color": "#f2b84b", "cell": [4, 1] },
-    { "sprite": "inn.lantern", "shape": "lantern", "color": "#f2b84b", "cell": [10, 1] },
+    { "sprite": "inn.lantern", "shape": "lantern", "glow": "lantern", "color": "#f2b84b", "cell": [4, 1] },
+    { "sprite": "inn.lantern", "shape": "lantern", "glow": "lantern", "color": "#f2b84b", "cell": [10, 1] },
     { "sprite": "inn.flowers", "shape": "flowers", "color": "#f28fb0", "cell": [1, 2] }
   ],
 

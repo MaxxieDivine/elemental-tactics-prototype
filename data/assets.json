@@ -18,6 +18,9 @@
     "town.tree": "res://art/town/tree.png",
     "town.lamp": "res://art/town/lamp.png",
     "town.crate": "res://art/town/crate.png",
+    "town.ferry": "res://art/town/ferry.png",
+    "town.night_letter": "res://art/town/night_letter.png",
+    "light.pool": "res://art/town/light_pool.png",
 
     "inn.arcade": "res://art/inn/arcade.png",
     "inn.fireplace": "res://art/inn/fireplace.png",

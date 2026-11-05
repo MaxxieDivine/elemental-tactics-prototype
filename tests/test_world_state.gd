@@ -11,10 +11,14 @@ const GameSession = preload("res://scripts/core/game_session.gd")
 const AssetCatalog = preload("res://scripts/core/asset_catalog.gd")
 
 
+## Flags (and a time of day, in a set as "time_of_day=night").
 func _flags(names: Array):
 	var f = StoryFlags.new()
 	for n in names:
-		f.set_flag(n)
+		if n.begins_with("time_of_day="):
+			f.set_time_of_day(n.substr(12))
+		else:
+			f.set_flag(n)
 	return f
 
 
@@ -70,16 +74,19 @@ func _arrivals(map_id: String) -> Array:
 	return out
 
 
-## Every combination of the flags a map's states look at.
+## Every combination of the flags a map's states look at, at every time of
+## day when its rules look at the time.
 func _flag_sets(map_id: String) -> Array:
 	var used: Array = WorldState.flags_used(TownMap.map_def(map_id))
+	var times: Array = StoryFlags.times() if WorldState.uses_time(TownMap.map_def(map_id)) else [StoryFlags.start_time()]
 	var out: Array = []
-	for mask in 1 << used.size():
-		var s: Array = []
-		for i in used.size():
-			if mask & (1 << i):
-				s.append(used[i])
-		out.append(s)
+	for t in times:
+		for mask in 1 << used.size():
+			var s: Array = ["time_of_day=" + t]
+			for i in used.size():
+				if mask & (1 << i):
+					s.append(used[i])
+			out.append(s)
 	return out
 
 
@@ -233,7 +240,7 @@ func test_inn_dialogue_changes_after_met_new_guest() -> void:
 		eq(d.line()["speaker"], "agador", "Agador asks first")
 	# Other interactions keep their lines after the scene.
 	var after = _flags(["found_room_key", "met_new_guest"])
-	for id in ["key_board", "fireplace", "room_1_bed", "room_3_door", "room_4_door", "welcome_banner", "cellar_hatch"]:
+	for id in ["key_board", "fireplace", "room_3_door", "room_4_door", "welcome_banner", "cellar_hatch"]:
 		eq(_texts(id, after), _texts(id, _flags([])), "%s unchanged by the scene" % id)
 	eq(_texts("arcade", after), dlg["arcade"][1]["lines"].map(func(l): return l["text"]), "arcade unchanged by the scene")
 
@@ -408,5 +415,5 @@ func test_no_story_ids_in_code() -> void:
 			if not file.ends_with(".gd"):
 				continue
 			var src := FileAccess.get_file_as_string(dir + file)
-			for word in ["new_guest", "found_room_key", "met_new_guest", "She came here"]:
+			for word in ["new_guest", "found_room_key", "met_new_guest", "She came here", "ferry_silhouette", "night_letter", "dock_end", "first_night", "saw_ferry", "Later that night"]:
 				check(not src.contains(word), "%s does not mention %s" % [file, word])

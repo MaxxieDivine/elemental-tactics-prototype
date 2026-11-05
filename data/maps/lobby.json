@@ -1,5 +1,6 @@
 {
   "name": "Inn lobby",
+  "lighting": "inn",
   "map": [
     "^^^^^^^^^^",
     "^|n||||nU^",
@@ -13,7 +14,11 @@
   ],
 
   "npcs": [
-    { "id": "innkeeper", "character": "innkeeper", "cell": [3, 2], "facing": "down", "interaction": "innkeeper", "stand": [[3, 4], [2, 4], [4, 4]] },
+    { "id": "innkeeper", "character": "innkeeper", "cell": [3, 2], "facing": "down", "interaction": "innkeeper", "stand": [[3, 4], [2, 4], [4, 4]],
+      "_comment": "Away from the desk during the first night.",
+      "states": [
+        { "requires": ["first_night_started"], "unless": ["first_night_over"], "hidden": true }
+      ] },
     {
       "id": "new_guest", "character": "new_guest", "cell": [2, 5], "facing": "up", "interaction": "new_guest",
       "hidden": true,
@@ -33,8 +38,8 @@
   "props": [
     { "sprite": "inn.desk",    "shape": "desk",    "color": "#7a3b2e", "cell": [2, 3] },
     { "sprite": "inn.desk",    "shape": "desk",    "color": "#7a3b2e", "cell": [3, 3] },
-    { "sprite": "inn.lantern", "shape": "lantern", "color": "#f2b84b", "cell": [3, 1] },
-    { "sprite": "inn.lantern", "shape": "lantern", "color": "#f2b84b", "cell": [6, 1] },
+    { "sprite": "inn.lantern", "shape": "lantern", "glow": "lantern", "color": "#f2b84b", "cell": [3, 1] },
+    { "sprite": "inn.lantern", "shape": "lantern", "glow": "lantern", "color": "#f2b84b", "cell": [6, 1] },
     { "sprite": "inn.flowers", "shape": "flowers", "color": "#f28fb0", "cell": [1, 2] },
     { "sprite": "inn.flowers", "shape": "flowers", "color": "#f6d55c", "cell": [8, 7] }
   ],
