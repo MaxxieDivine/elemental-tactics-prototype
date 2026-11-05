@@ -11,6 +11,9 @@ var max_hp: int = 1
 var move: int = 3
 var abilities: Array = []  # ability ids; heroes: [basic, ability1, ability2]
 var cooldowns: Dictionary = {}  # ability id -> rounds until usable
+var uses: Dictionary = {}  # ability id -> uses left this fight (only abilities with "uses")
+var avoids: Array = []  # surface names this unit never walks onto by itself (data "avoids")
+var carries: String = ""  # element it brings onto a surface it enters (data "carries", e.g. a candle: fire)
 var burning: int = 0  # rounds of burning left
 var moved: bool = false
 var acted: bool = false
@@ -25,7 +28,7 @@ func is_done() -> bool:
 
 
 func can_use(ability_id: String) -> bool:
-	return not acted and int(cooldowns.get(ability_id, 0)) <= 0
+	return not acted and int(cooldowns.get(ability_id, 0)) <= 0 and int(uses.get(ability_id, 1)) > 0
 
 
 func clone():
@@ -40,6 +43,9 @@ func clone():
 	u.move = move
 	u.abilities = abilities.duplicate()
 	u.cooldowns = cooldowns.duplicate()
+	u.uses = uses.duplicate()
+	u.avoids = avoids.duplicate()
+	u.carries = carries
 	u.burning = burning
 	u.moved = moved
 	u.acted = acted

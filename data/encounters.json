@@ -26,5 +26,54 @@
       { "type": "spitter", "cell": [4, 0] },
       { "type": "spitter", "cell": [7, 0] }
     ]
+  },
+
+  "cellar_rats": {
+    "_comment": "Agador alone against the cellar rats. Rats will not walk on oil; burning oil also scorches anyone right next to the patch (flare), except on water. Kick the candle rat into the oil, or knock the lantern over once rats line the oil's edge. 'return': where Agador stands in the world after a win or a loss.",
+    "seed": 4242,
+    "legend": { ".": "floor", "#": "wall", "o": "oil", "w": "water" },
+    "map": [
+      "#.....#",
+      "#.#.#.#",
+      ".......",
+      ".ooooo.",
+      "...o...",
+      "ww.....",
+      ".......",
+      "..#.#..",
+      "......."
+    ],
+    "objects": [
+      { "type": "cellar_lantern", "cell": [3, 5] }
+    ],
+    "terrain": {
+      "reactions": { "fire": { "oil": { "chain": "ignite", "damage": 2, "burns": true, "flare": 2, "flare_burns": true, "text": "IGNITE!" } } },
+      "surfaces": { "oil": { "desc": "Oil: fire ignites the whole patch and scorches anyone right next to it (not on water)" } }
+    },
+    "party": [
+      { "id": "agador", "cell": [3, 8] }
+    ],
+    "enemies": [
+      { "type": "rat",        "cell": [1, 0] },
+      { "type": "rat",        "cell": [5, 0] },
+      { "type": "candle_rat", "cell": [3, 0] },
+      { "type": "rat",        "cell": [3, 1] }
+    ],
+    "presentation": {
+      "style": "pixel",
+      "tile_css": 48,
+      "background": "#0e0b0a",
+      "tiles": {
+        "floor":  { "sprite": "cellar.fight.floor", "pattern": "flagstone", "color": "#5d544c" },
+        "wall":   { "sprite": "cellar.fight.shelf", "pattern": "shelf",     "color": "#5a3a24" },
+        "oil":    { "sprite": "cellar.fight.oil",   "pattern": "oil",       "color": "#2c2318" },
+        "water":  { "sprite": "cellar.fight.water", "pattern": "puddle",    "color": "#3c6e9c" },
+        "steam":  { "sprite": "cellar.fight.steam", "pattern": "steam",     "color": "#c9cfd6" }
+      }
+    },
+    "return": {
+      "won":  { "map": "cellar", "cell": [4, 4], "facing": "down" },
+      "lost": { "map": "cellar", "cell": [4, 2], "facing": "down" }
+    }
   }
 }

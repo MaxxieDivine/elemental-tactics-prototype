@@ -51,7 +51,7 @@ static func plan(state, e, claimed: Dictionary) -> void:
 		return
 
 	# 2) Otherwise close the distance to the nearest hero.
-	var dist_map := _distance_to_heroes(state, heroes)
+	var dist_map := _distance_to_heroes(state, heroes, e)
 	var best_d := INF
 	for c in candidates:
 		var d: float = dist_map.get(c, 999) * 10 + info[c]["dist"]
@@ -62,8 +62,9 @@ static func plan(state, e, claimed: Dictionary) -> void:
 	claimed[best_cell] = true
 
 
-## Multi-source BFS distance from every hero, ignoring units.
-static func _distance_to_heroes(state, heroes: Array) -> Dictionary:
+## Multi-source BFS distance from every hero, ignoring units (and, for an
+## enemy that avoids some surfaces, around those).
+static func _distance_to_heroes(state, heroes: Array, e = null) -> Dictionary:
 	var dist := {}
 	var frontier: Array = []
 	for h in heroes:
@@ -73,7 +74,7 @@ static func _distance_to_heroes(state, heroes: Array) -> Dictionary:
 		var c: Vector2i = frontier.pop_front()
 		for dir in BattleState.DIRS:
 			var n: Vector2i = c + dir
-			if dist.has(n) or state.is_obstacle(n):
+			if dist.has(n) or state.is_obstacle(n) or (e != null and state.avoids_cell(e, n)):
 				continue
 			dist[n] = dist[c] + 1
 			frontier.append(n)

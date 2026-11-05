@@ -243,7 +243,8 @@ func test_hero_display_names_come_from_data() -> void:
 				continue
 			var src := FileAccess.get_file_as_string(dir + file)
 			for id in heroes:
-				check(not src.contains('"%s"' % heroes[id]["name"]), "%s does not hard-code '%s'" % [file, heroes[id]["name"]])
+				var hn: String = GameData.hero(id)["name"]
+				check(not src.contains('"%s"' % hn), "%s does not hard-code '%s'" % [file, hn])
 
 
 func test_agador_id_name_and_portrait_from_data() -> void:

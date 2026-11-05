@@ -3,7 +3,9 @@
     "floor":  { "sprite": "tile_floor",  "blocks_move": false, "blocks_sight": false },
     "wall":   { "sprite": "tile_wall",   "blocks_move": true,  "blocks_sight": true },
     "barrel": { "sprite": "tile_barrel", "blocks_move": true,  "blocks_sight": false,
-                "explodes": true, "blast_damage": 3, "blast_element": "fire" }
+                "explodes": true, "blast_damage": 3, "blast_element": "fire" },
+    "cellar_lantern": { "sprite": "cellar.lantern", "shape": "cellar_lantern", "blocks_move": true, "blocks_sight": false,
+                        "desc": "Lantern: stand next to it and Knock over to tip it onto an oil tile beside it" }
   },
   "surfaces": {
     "none":  { "sprite": "" },

@@ -8,7 +8,9 @@ const GameData = preload("res://scripts/core/game_data.gd")
 
 enum Terrain { FLOOR, WALL, BARREL }
 enum Surface { NONE, WATER, OIL, STEAM }
-## Names match the keys in data/terrain.json.
+## Names match the keys in data/terrain.json. Tiles beyond these three (a
+## lantern, say) get the next numbers, in the order terrain.json lists them
+## (see terrain_names()).
 const TERRAIN_NAMES: Array[String] = ["floor", "wall", "barrel"]
 const SURFACE_NAMES: Array[String] = ["none", "water", "oil", "steam"]
 
@@ -27,6 +29,12 @@ var next_unit_id: int = 1
 ## (used for previews) roll exactly the same results as the real one.
 var rng_seed: int = 0
 var rng_state: int = 0
+## What tiles, surfaces and element reactions do in this fight: data/terrain.json
+## with the encounter's own "terrain" overrides laid over it (see LevelLoader).
+## Shared (read-only) between clones.
+var terrain_data: Dictionary = {}
+
+static var _terrain_names: Array = []
 
 
 func setup(w: int, h: int) -> void:
@@ -55,6 +63,7 @@ func clone():
 	s.next_unit_id = next_unit_id
 	s.rng_seed = rng_seed
 	s.rng_state = rng_state
+	s.terrain_data = terrain_data
 	return s
 
 
@@ -101,26 +110,71 @@ func get_surface(c: Vector2i) -> int:
 ## timer < 0 uses the surface's "duration" from terrain.json (0 = permanent).
 func set_surface(c: Vector2i, s: int, timer: int = -1) -> void:
 	if timer < 0:
-		timer = int(surface_def(s).get("duration", 0))
+		timer = int(surface_info(s).get("duration", 0))
 	surface[idx(c)] = s
 	steam_timer[idx(c)] = timer
 
 
+## Every terrain tile name by number: floor, wall, barrel, then any other
+## tile in data/terrain.json (or added by an encounter), in order.
+static func terrain_names() -> Array:
+	if _terrain_names.is_empty():
+		for n in TERRAIN_NAMES:
+			_terrain_names.append(n)
+		for k in GameData.get_json("terrain")["tiles"]:
+			if not _terrain_names.has(k):
+				_terrain_names.append(k)
+	return _terrain_names
+
+
+## The number for a terrain tile name (new names get the next number).
+static func terrain_index(name: String) -> int:
+	var names := terrain_names()
+	if not names.has(name):
+		names.append(name)
+	return names.find(name)
+
+
+static func terrain_name(t: int) -> String:
+	var names := terrain_names()
+	return names[t] if t >= 0 and t < names.size() else "floor"
+
+
+## Global definitions (data/terrain.json only, no encounter overrides).
 static func terrain_def(t: int) -> Dictionary:
-	return GameData.tile(TERRAIN_NAMES[t])
+	return GameData.get_json("terrain")["tiles"].get(terrain_name(t), {})
 
 
 static func surface_def(s: int) -> Dictionary:
 	return GameData.surface(SURFACE_NAMES[s])
 
 
+func _terrain_rules() -> Dictionary:
+	return terrain_data if not terrain_data.is_empty() else GameData.get_json("terrain")
+
+
+## This fight's definition of a terrain tile (with encounter overrides).
+func tile_info(t: int) -> Dictionary:
+	return _terrain_rules()["tiles"].get(terrain_name(t), {})
+
+
+## This fight's definition of a surface (with encounter overrides).
+func surface_info(s: int) -> Dictionary:
+	return _terrain_rules()["surfaces"].get(SURFACE_NAMES[s], {})
+
+
+## What an element does to a surface in this fight ({} if nothing).
+func reaction(element: String, s: int) -> Dictionary:
+	return _terrain_rules()["reactions"].get(element, {}).get(SURFACE_NAMES[s], {})
+
+
 ## Map edge and tiles with blocks_move (walls, barrels) stop movement and pushes.
 func is_obstacle(c: Vector2i) -> bool:
-	return not in_bounds(c) or terrain_def(get_terrain(c)).get("blocks_move", false)
+	return not in_bounds(c) or tile_info(get_terrain(c)).get("blocks_move", false)
 
 
 func blocks_sight(c: Vector2i) -> bool:
-	return terrain_def(get_terrain(c)).get("blocks_sight", false) or surface_def(get_surface(c)).get("blocks_sight", false)
+	return tile_info(get_terrain(c)).get("blocks_sight", false) or surface_info(get_surface(c)).get("blocks_sight", false)
 
 
 # --- units -----------------------------------------------------------------
@@ -160,7 +214,8 @@ static func manhattan(a: Vector2i, b: Vector2i) -> int:
 
 
 ## BFS over the unit's move range. Units may pass through allies but not
-## enemies, and may only stop on empty tiles.
+## enemies, and may only stop on empty tiles. A unit never steps onto a
+## surface it avoids (its data "avoids", e.g. rats and oil).
 ## Returns {cell: {"dist": int, "prev": Vector2i, "stop": bool}}.
 func reachable(u) -> Dictionary:
 	var info := {u.cell: {"dist": 0, "prev": u.cell, "stop": true}}
@@ -172,7 +227,7 @@ func reachable(u) -> Dictionary:
 			continue
 		for dir in DIRS:
 			var n: Vector2i = c + dir
-			if info.has(n) or is_obstacle(n):
+			if info.has(n) or is_obstacle(n) or avoids_cell(u, n):
 				continue
 			var other = unit_at(n)
 			if other != null and other.team != u.team:
@@ -180,6 +235,11 @@ func reachable(u) -> Dictionary:
 			info[n] = {"dist": d + 1, "prev": c, "stop": other == null}
 			frontier.append(n)
 	return info
+
+
+## True when the unit will not walk onto this cell by itself.
+func avoids_cell(u, c: Vector2i) -> bool:
+	return not u.avoids.is_empty() and u.avoids.has(SURFACE_NAMES[get_surface(c)])
 
 
 func move_destinations(u) -> Array:
@@ -241,6 +301,6 @@ func surface_component(start: Vector2i, s: int) -> Array:
 ## Tiles connected to start through surfaces that conduct this element.
 func conductive_component(start: Vector2i, element: String) -> Array:
 	var s: int = get_surface(start)
-	if surface_def(s).get("conducts", "") != element:
+	if surface_info(s).get("conducts", "") != element:
 		return []
 	return surface_component(start, s)

@@ -1,5 +1,6 @@
 {
   "tide":  { "name": "Tide",  "sprite": "hero_tide",  "color": "#3d8bff", "hp": 8, "move": 4, "abilities": ["strike", "splash", "wave"] },
   "volt":  { "name": "Volt",  "sprite": "hero_volt",  "color": "#f2d03b", "hp": 7, "move": 4, "abilities": ["strike", "zap", "thunderclap"] },
-  "ember": { "name": "Ember", "sprite": "hero_ember", "color": "#ff6a2b", "hp": 7, "move": 4, "abilities": ["strike", "firebolt", "inferno"] }
+  "ember": { "name": "Ember", "sprite": "hero_ember", "color": "#ff6a2b", "hp": 7, "move": 4, "abilities": ["strike", "firebolt", "inferno"] },
+  "agador": { "character": "agador", "shape": "character", "hp": 8, "move": 3, "abilities": ["punch", "kick", "knock_over"] }
 }
