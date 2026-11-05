@@ -16,5 +16,11 @@ it in `data/assets.json`. No code changes.
 | `agador.portrait.neutral`, `innkeeper.portrait.neutral`, `new_guest.portrait.upset` | Dialogue portraits | Any square-ish image (shown at 76x76, nearest filtering). Which key a character uses is set in `data/characters.json`. Without art, the placeholder is the character's colour with their initial (or a short name like `???` in full). |
 | `mood.upset` | Mark above an upset NPC | Small image, drawn centred above the head. |
 | `town.welcome_banner`, `town.letter`, `town.cellar_hatch`, `town.tree`, `town.lamp`, `town.crate` | Town objects/props | One image, drawn standing on its tile (bottom centre). |
+| `town.ferry`, `town.night_letter` | First-night objects | One image, bottom centre on its tile. The ferry sits on a water tile offshore (about 32 px wide); without art it is a dark silhouette with one dim lantern. |
+| `light.pool` | Night light pools | A white, soft radial blob (any size; it is scaled to each pool's radius and tinted from `lighting_presets` in `data/town.json`). Without it, pools are stepped pixel rings. |
 | `inn.arcade`, `inn.fireplace`, `inn.guest_book`, `inn.desk`, `inn.key_board`, `inn.lantern`, `inn.flowers`, `inn.armchair`, `inn.side_table`, `inn.bed`, `inn.table_key`, `inn.door_reserved`, `inn.door_name`, `inn.door_light` | Inn objects/props | One image, bottom centre on its tile. Wall pieces (fireplace, key board, lanterns, door cards) stand on the wall tile's bottom edge. The bed is two tiles tall (32 px). A loaded image is static; only the placeholders animate. |
 | `hero_*`, `enemy_*`, `tile_*`, `surface_*` | Fight (optional) | Drawn inside a fight tile. |
+
+Night lighting is not art: it tints tiles and sprites and draws light pools
+from the presets in `data/town.json` (`lighting_presets`). Art drawn for the
+day works at night unchanged.
