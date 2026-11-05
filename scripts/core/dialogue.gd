@@ -1,10 +1,15 @@
 ## Plays one interaction's dialogue from data/dialogue.json. Picks the first
 ## entry whose flag requirements are met, steps through its lines, and on the
 ## last line applies its effects: set_flags, and an optional fight request.
+## Each line's action-button label comes from data too: the line's own
+## "button", else the "_buttons" defaults ("next" / "close").
 ## Plain data, no Nodes: the dialogue box only shows what this says.
 extends RefCounted
 
 const GameData = preload("res://scripts/core/game_data.gd")
+
+## Used only if data/dialogue.json has no "_buttons" block.
+const DEFAULT_BUTTONS := {"next": "Next", "close": "Close", "skip": "Skip"}
 
 var flags  # StoryFlags
 var interaction_id: String = ""
@@ -20,11 +25,19 @@ func _init(story_flags) -> void:
 
 
 static func has_interaction(id: String) -> bool:
-	return GameData.get_json("dialogue").has(id)
+	return not id.begins_with("_") and GameData.get_json("dialogue").has(id)
+
+
+## A default button label from data ("next", "close" or "skip").
+static func default_button(kind: String) -> String:
+	var b: Dictionary = GameData.get_json("dialogue").get("_buttons", {})
+	return str(b.get(kind, DEFAULT_BUTTONS.get(kind, kind.capitalize())))
 
 
 ## The entry that would play for this interaction now ({} if none).
 static func select_entry(id: String, story_flags) -> Dictionary:
+	if id.begins_with("_"):
+		return {}
 	for e in GameData.get_json("dialogue").get(id, []):
 		if story_flags.meets(e.get("requires", []), e.get("unless", [])):
 			return e
@@ -48,7 +61,12 @@ func start(id: String) -> bool:
 	return true
 
 
-## The current line: {"speaker", "name", "text", "portrait", "color"}.
+func is_last_line() -> bool:
+	return not finished and index >= entry["lines"].size() - 1
+
+
+## The current line: {"speaker", "name", "text", "portrait", "color", "button"}.
+## "button" is the label for the action that ends this line.
 func line() -> Dictionary:
 	if finished:
 		return {}
@@ -61,6 +79,7 @@ func line() -> Dictionary:
 		"text": str(l.get("text", "")),
 		"portrait": str(l.get("portrait", c.get("portrait", ""))),
 		"color": str(c.get("color", "#888888")),
+		"button": str(l.get("button", default_button("close" if is_last_line() else "next"))),
 	}
 
 

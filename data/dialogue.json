@@ -1,5 +1,6 @@
 {
-  "_comment": "Interaction id -> entries. The first entry whose 'requires' flags are all set (and whose 'unless' flags are all unset) plays. Optional on finish: 'set_flags', 'start_fight' (encounter id) with 'win_flags'. A line may set 'portrait' to another asset key.",
+  "_comment": "Interaction id -> entries. The first entry whose 'requires' flags are all set (and whose 'unless' flags are all unset) plays. Optional on finish: 'set_flags', 'start_fight' (encounter id) with 'win_flags'. A line may set 'portrait' to another asset key, and 'button' to the label of its action button (else the _buttons defaults: 'next' on a middle line, 'close' on the last, 'skip' while typing).",
+  "_buttons": { "next": "Next", "close": "Close", "skip": "Skip" },
 
   "innkeeper": [
     {
