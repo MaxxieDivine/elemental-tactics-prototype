@@ -20,6 +20,18 @@ it in `data/assets.json`. No code changes.
 | `light.pool` | Night light pools | A white, soft radial blob (any size; it is scaled to each pool's radius and tinted from `lighting_presets` in `data/town.json`). Without it, pools are stepped pixel rings. |
 | `inn.arcade`, `inn.fireplace`, `inn.guest_book`, `inn.desk`, `inn.key_board`, `inn.lantern`, `inn.flowers`, `inn.armchair`, `inn.side_table`, `inn.bed`, `inn.table_key`, `inn.door_reserved`, `inn.door_name`, `inn.door_light` | Inn objects/props | One image, bottom centre on its tile. Wall pieces (fireplace, key board, lanterns, door cards) stand on the wall tile's bottom edge. The bed is two tiles tall (32 px). A loaded image is static; only the placeholders animate. |
 | `hero_*`, `enemy_*`, `tile_*`, `surface_*` | Fight (optional) | Drawn inside a fight tile. |
+| `town.cellar_hatch_open` | The hatch after the first night (no padlock) | Like `town.cellar_hatch`. |
+| `town.dock_office` | The dock office building | About 48 x 32 px, bottom centre on its front-middle tile; leave the right tile's doorway and the left tile's window to the next two keys. |
+| `town.dock_office_door`, `town.dock_office_light` | The office door, and the lit window (it fades out) | One tile each, bottom centre. |
+| `cellar.lamp`, `cellar.shelf`, `cellar.luggage`, `cellar.fallen_shelf` | Cellar props and the obstacle | One image, bottom centre. The shelf is two tiles tall (32 px). |
+| `cellar.agador_suitcase`, `cellar.blank_tags`, `cellar.ribbon_case`, `cellar.humming_case` | The luggage you can inspect | One tile each. Keep the ribbon case and the humming case easy to tell apart. A loaded image is static (the placeholder humming case animates). |
+| `cellar.rat`, `cellar.candle_rat` | Rats, in the cellar and in its fight | 16 x 16, feet at the bottom. Drawn at 3x in the fight. |
+| `cellar.lantern` | The cellar fight's lantern | 16 x 16. |
+| `cellar.fight.floor`, `cellar.fight.shelf`, `cellar.fight.oil`, `cellar.fight.water`, `cellar.fight.steam` | The cellar fight's board tiles | 16 x 16 tiles, drawn at 3x (48 CSS px). Oil should fill the tile so a patch reads as one slick. |
+
+In the cellar fight Agador uses `agador.sprite` (the frame for the way he
+faces). A 16 x 16 frame fills his tile exactly at 3x; the placeholder figure
+is taller and its head reaches into the tile above.
 
 Night lighting is not art: it tints tiles and sprites and draws light pools
 from the presets in `data/town.json` (`lighting_presets`). Art drawn for the
