@@ -5,11 +5,21 @@
 ## text is drawn unscaled with a minimum size so it stays readable on phones.
 ## Sprites are looked up by key in the AssetCatalog (data/assets.json, falling
 ## back to res://art/<sprite key>.png) and replace placeholders when present.
+##
+## Two looks, picked by the encounter's "presentation": the arcade's shapes
+## and colours (default), or "style": "pixel", the world's pixel art: board
+## tiles from the presentation's "tiles" (asset key, else a generated
+## 16x16 tile from "pattern" + "color"), units and objects from their sprite
+## keys (else PixelArt placeholders), every art pixel scaled to cell / 16
+## (3 CSS px on the cellar's 48 CSS px tiles), nearest filtering.
 extends Node2D
 
 const BattleState = preload("res://scripts/core/battle_state.gd")
 const GameData = preload("res://scripts/core/game_data.gd")
 const AssetCatalog = preload("res://scripts/core/asset_catalog.gd")
+const PixelArt = preload("res://scripts/view/pixel_art.gd")
+const TownTiles = preload("res://scripts/view/town_tiles.gd")
+const ART_PX := 16.0  # art pixels per tile in the pixel look
 
 const CELL := 60.0  # authoring cell size; real size = CELL * k
 const MIN_TEXT := 11.0
@@ -60,9 +70,36 @@ var pulse: float = 0.0
 var _shake_off := Vector2.ZERO
 var _textures: Dictionary = {}
 
+# Presentation (from the encounter).
+var presentation: Dictionary = {}
+var pixel := false  # the world's pixel-art look instead of the arcade's
+var _tile_tex: Dictionary = {}  # pixel tile kind -> Texture2D
+var unit_facing: Dictionary = {}  # unit id -> "up"/"down"/"left"/"right" (pixel look)
+
 
 func _ready() -> void:
 	font = ThemeDB.fallback_font
+
+
+## The encounter's "presentation" ({} for the arcade look).
+func set_presentation(pres: Dictionary) -> void:
+	presentation = pres
+	pixel = str(pres.get("style", "")) == "pixel"
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST if pixel else CanvasItem.TEXTURE_FILTER_PARENT_NODE
+	_tile_tex.clear()
+	queue_redraw()
+
+
+## A pixel-look board tile ("floor", "wall", "oil", "water", "steam"): its
+## art if the key exists, else a generated placeholder tile.
+func pixel_tile(kind: String) -> Texture2D:
+	if not _tile_tex.has(kind):
+		var d: Dictionary = presentation.get("tiles", {}).get(kind, {})
+		var tex: Texture2D = AssetCatalog.try_texture(str(d.get("sprite", "")), false)
+		if tex == null and d.has("pattern"):
+			tex = TownTiles.tile_texture(str(d["pattern"]), Color(str(d.get("color", "#808080"))), int(ART_PX), kind.length())
+		_tile_tex[kind] = tex
+	return _tile_tex[kind]
 
 
 func set_state(s) -> void:
@@ -127,6 +164,7 @@ func _play_event(ev: Dictionary) -> void:
 			var u = disp.unit_by_id(ev["unit"])
 			var p: Array = ev["path"]
 			for i in range(1, p.size()):
+				unit_facing[u.id] = _facing(p[i - 1], p[i])
 				await _tween_unit(u.id, center(p[i]), 0.09)
 			u.cell = p[-1]
 		"push":
@@ -189,6 +227,13 @@ func _play_event(ev: Dictionary) -> void:
 			await wait(0.25)
 
 
+static func _facing(a: Vector2i, b: Vector2i) -> String:
+	var d := b - a
+	if absi(d.x) >= absi(d.y):
+		return "right" if d.x > 0 else "left"
+	return "down" if d.y > 0 else "up"
+
+
 func _tween_unit(id: int, to: Vector2, t: float) -> void:
 	var tw := create_tween()
 	tw.tween_method(func(v: Vector2): unit_px[id] = v, unit_px[id], to, t / speed)
@@ -214,7 +259,12 @@ func _draw() -> void:
 	# Cosmetic-only randomness (screen shake); gameplay never uses it.
 	_shake_off = Vector2(randf_range(-shake, shake), randf_range(-shake, shake)) * k if shake > 0.0 else Vector2.ZERO
 	_xf()
-	_draw_tiles()
+	if pixel:
+		var bg := Color(str(presentation.get("background", "#000000")))
+		draw_rect(Rect2(Vector2(-6, -6), Vector2(disp.width, disp.height) * CELL + Vector2(12, 12)), bg)
+		_draw_tiles_pixel()
+	else:
+		_draw_tiles()
 	_draw_overlays()
 	if show_intents:
 		_draw_intents()
@@ -268,6 +318,85 @@ func _draw_tiles() -> void:
 			else:
 				_draw_terrain_placeholder(c, r)
 			draw_rect(r, Color(0, 0, 0, 0.25), false, 1.0)
+
+
+## Draws in art pixels with the feet at `feet` (authoring space).
+func _art_xf(feet: Vector2) -> void:
+	var s := k * CELL / ART_PX
+	draw_set_transform(_shake_off + feet * k, 0.0, Vector2(s, s))
+
+
+func _feet(p: Vector2) -> Vector2:
+	return p + Vector2(0, CELL * 0.5 - 0.5)
+
+
+func _draw_tiles_pixel() -> void:
+	var floor_tex := pixel_tile("floor")
+	for y in disp.height:
+		for x in disp.width:
+			var c := Vector2i(x, y)
+			var r := _rect(c)
+			var t: int = disp.get_terrain(c)
+			if t == BattleState.Terrain.WALL:
+				var wall := pixel_tile("wall")
+				if wall:
+					draw_texture_rect(wall, r, false)
+				continue
+			if floor_tex:
+				draw_texture_rect(floor_tex, r, false)
+			var s_name: String = BattleState.SURFACE_NAMES[disp.get_surface(c)]
+			if s_name != "none":
+				var s_tex := pixel_tile(s_name)
+				if s_tex:
+					draw_texture_rect(s_tex, r, false)
+				else:
+					_draw_surface_placeholder(c, r)
+			if t != BattleState.Terrain.FLOOR:
+				var def: Dictionary = disp.tile_info(t)
+				var tex := _tex(str(def.get("sprite", "")))
+				if tex:
+					draw_texture_rect(tex, r, false)
+				elif PixelArt.has_shape(str(def.get("shape", ""))):
+					_art_xf(_feet(center(c)))
+					PixelArt.draw(self, str(def["shape"]), Color(str(def.get("color", "#f2b84b"))), pulse)
+					_xf()
+				else:
+					_draw_terrain_placeholder(c, r)
+			draw_rect(r, Color(0, 0, 0, 0.18), false, 1.0)
+
+
+## A unit in the pixel look: its sprite key (a character sheet uses the
+## frame for the way it faces), else its PixelArt placeholder.
+func _draw_pixel_unit(u, p: Vector2, data: Dictionary) -> void:
+	var tex := _tex(data.get("sprite", ""))
+	var face: String = unit_facing.get(u.id, "up" if u.team == "hero" else "left")
+	var tint := Color.WHITE
+	if u.team == "hero" and u.is_done() and disp.phase == "player":
+		tint = Color(0.62, 0.62, 0.66)
+	if u.id == selected_id or u.id == acting_id:
+		draw_arc(p + Vector2(0, 20), 20, 0, TAU, 24, Color.WHITE if u.team == "hero" else Color("#ffdd55"), 3.0)
+	_art_xf(_feet(p))
+	var shadow := PackedVector2Array()
+	for i in 12:
+		var a := TAU * i / 12.0
+		shadow.append(Vector2(cos(a) * 6.0, -1.0 + sin(a) * 2.0))
+	draw_colored_polygon(shadow, Color(0, 0, 0, 0.3))
+	if tex:
+		var size := tex.get_size()
+		var src := Rect2(Vector2.ZERO, size)
+		if data.has("character") or str(data.get("shape", "")) == "character":
+			var fw := size.x / 4.0
+			src = Rect2(fw * maxi(0, ["down", "left", "right", "up"].find(face)), 0, fw, size.y)
+		draw_texture_rect_region(tex, Rect2(-src.size.x * 0.5, -src.size.y, src.size.x, src.size.y), src, tint)
+	else:
+		var col := Color(str(data.get("color", "#cccccc"))) * tint
+		var shape := str(data.get("shape", "character"))
+		if not PixelArt.has_shape(shape):
+			shape = "character" if u.team == "hero" else "rat"
+		if shape != "character" and face != "left" and face != "right":
+			face = "left"
+		PixelArt.draw(self, shape, col, pulse, face)
+	_xf()
 
 
 func _draw_surface_placeholder(c: Vector2i, r: Rect2) -> void:
@@ -376,8 +505,10 @@ func _draw_units() -> void:
 			continue
 		var p: Vector2 = unit_px[u.id]
 		var data: Dictionary = GameData.hero(u.type_id) if u.team == "hero" else GameData.enemy(u.type_id)
-		var tex := _tex(data.get("sprite", ""))
-		if tex:
+		var tex := _tex(data.get("sprite", "")) if not pixel else null
+		if pixel:
+			_draw_pixel_unit(u, p, data)
+		elif tex:
 			draw_texture_rect(tex, Rect2(p - Vector2(24, 24), Vector2(48, 48)), false)
 			if u.id == selected_id or u.id == acting_id:
 				draw_arc(p, 27, 0, TAU, 32, Color.WHITE if u.team == "hero" else Color("#ffdd55"), 3.0)
@@ -406,12 +537,13 @@ func _draw_units() -> void:
 				draw_rect(Rect2(p - Vector2(18, 18), Vector2(36, 36)), Color(0, 0, 0, 0.7), false, 2.0)
 			_text(p, u.name.substr(0, 1), 18, Color.WHITE, 3)
 		if u.team == "enemy":
-			draw_circle(p + Vector2(-20, -20), 11, Color(0.1, 0.1, 0.1))
-			_text(p + Vector2(-20, -20), str(u.order), 14, Color.WHITE, 0)
+			var bp := p + (Vector2(-21, -21) if not pixel else Vector2(-21, -19))
+			draw_circle(bp, 11, Color(0.1, 0.1, 0.1))
+			_text(bp, str(u.order), 14, Color.WHITE, 0)
 		# HP pips.
 		var w := 44.0
 		var pip: float = w / u.max_hp
-		var base := p + Vector2(-w * 0.5, 22)
+		var base := p + Vector2(-w * 0.5, 22 if not pixel else 24)
 		draw_rect(Rect2(base - Vector2(1, 1), Vector2(w + 2, 7)), Color(0, 0, 0, 0.8))
 		for i in u.max_hp:
 			var filled: bool = i < u.hp

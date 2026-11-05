@@ -1,6 +1,10 @@
 ## Builds the UI widgets and places them for portrait (phones, designed for
 ## first) or landscape (desktop/tablet: board left, panel right). Every
 ## button is at least 48 UI units tall (~48 CSS px, see ScreenMetrics).
+## The board's size comes from the encounter (configure): its columns and
+## rows, and optionally a tile size in CSS px (the cellar's 48 px tiles; it
+## shrinks only if a small screen can't fit it). With a party of one the
+## hero tabs are hidden and the ability panel sits right under the board.
 ## Presentation only: no combat rules, no input decisions.
 extends CanvasLayer
 
@@ -44,6 +48,10 @@ var over_btn: Button
 var menu_btn: Button
 var portrait: bool = true
 var metrics: Dictionary = {}
+var cols: int = 10  # board size in tiles
+var rows: int = 10
+var tile_css: float = 0.0  # wanted tile size in CSS px (0: as big as fits)
+var solo: bool = false  # one hero: no hero tabs
 var _laying_out := false
 
 
@@ -176,6 +184,25 @@ func _place(c: Control, x: float, y: float, w: float, h: float) -> void:
 	c.size = Vector2(w, h)
 
 
+## Sets the board's size in tiles, the wanted tile size in CSS px (0: as
+## big as fits) and whether the party is one hero (no tabs), then lays out.
+func configure(board_cols: int, board_rows: int, wanted_tile_css: float, one_hero: bool) -> void:
+	cols = maxi(1, board_cols)
+	rows = maxi(1, board_rows)
+	tile_css = wanted_tile_css
+	solo = one_hero
+	hero_row.visible = not solo
+	relayout()
+
+
+## The tile size in UI units for a board that may be at most w x h units.
+func _cell_for(w: float, h: float) -> float:
+	var fit := minf(w / cols, h / rows)
+	if tile_css > 0.0:
+		return minf(fit, tile_css / float(metrics.get("css_per_unit", 1.0)))
+	return floorf(fit)
+
+
 func relayout() -> void:
 	if _laying_out:
 		return
@@ -185,29 +212,29 @@ func relayout() -> void:
 	var ins: Array = metrics["insets"]  # top, right, bottom, left
 	var area := Rect2(ins[3] + GAP, ins[0] + GAP, size.x - ins[1] - ins[3] - GAP * 2, size.y - ins[0] - ins[2] - GAP * 2)
 	portrait = area.size.x < area.size.y * 1.15
-	var rows_h := BTN_H * 3 + PANEL_H + GAP * 3
-	var bs: float
+	var rows_h := BTN_H * (2 if solo else 3) + PANEL_H + GAP * 3
+	var cell: float
 	if portrait:
 		# Top bar, board (full width), heroes, abilities, actions, info.
-		bs = minf(area.size.x, area.size.y - rows_h - 64)
-		var cell := floorf(bs / 10.0)
-		bs = cell * 10.0
+		cell = _cell_for(area.size.x, area.size.y - rows_h - 64)
+		var bw := cell * cols
+		var bh := cell * rows
 		var y := area.position.y
 		_place(top_row, area.position.x, y, area.size.x, BTN_H)
 		y += BTN_H + GAP
-		_place(board_input, area.position.x + (area.size.x - bs) * 0.5, y, bs, bs)
-		y += bs + GAP
+		_place(board_input, area.position.x + (area.size.x - bw) * 0.5, y, bw, bh)
+		y += bh + GAP
 		y = _place_hero_block(area.position.x, y, area.size.x)
 		_place(action_row, area.position.x, y, area.size.x, BTN_H)
 		y += BTN_H + GAP
 		_place(info_text, area.position.x, y, area.size.x, maxf(40.0, area.end.y - y))
 	else:
 		# Board on the left at full height, everything else in a column.
-		bs = minf(area.size.y, area.size.x - 300.0)
-		var cell := floorf(bs / 10.0)
-		bs = cell * 10.0
-		_place(board_input, area.position.x, area.position.y + (area.size.y - bs) * 0.5, bs, bs)
-		var px := area.position.x + bs + GAP * 2
+		cell = _cell_for(area.size.x - 300.0, area.size.y)
+		var bw := cell * cols
+		var bh := cell * rows
+		_place(board_input, area.position.x, area.position.y + (area.size.y - bh) * 0.5, bw, bh)
+		var px := area.position.x + bw + GAP * 2
 		var pw := area.end.x - px
 		var y := area.position.y
 		_place(top_row, px, y, pw, BTN_H)
@@ -216,8 +243,8 @@ func relayout() -> void:
 		_place(action_row, px, y, pw, BTN_H)
 		y += BTN_H + GAP
 		_place(info_text, px, y, pw, maxf(40.0, area.end.y - y))
-	board_input.cell_size = bs / 10.0
-	board.set_cell_size(bs / 10.0)
+	board_input.cell_size = cell
+	board.set_cell_size(cell)
 	_place(over_layer, 0, 0, size.x, size.y)
 	_laying_out = false
 
@@ -225,8 +252,9 @@ func relayout() -> void:
 ## Hero tabs with the selected hero's ability panel directly below (no gap,
 ## so the selected tab and the panel read as one piece). Returns the next y.
 func _place_hero_block(x: float, y: float, w: float) -> float:
-	_place(hero_row, x, y, w, BTN_H)
-	y += BTN_H
+	if not solo:
+		_place(hero_row, x, y, w, BTN_H)
+		y += BTN_H
 	_place(ability_panel, x, y, w, PANEL_H)
 	_place(ability_title, PANEL_PAD + 4, PANEL_PAD, w - PANEL_PAD * 2 - 8, PANEL_TITLE_H)
 	_place(ability_row, PANEL_PAD, PANEL_PAD + PANEL_TITLE_H, w - PANEL_PAD * 2, BTN_H)
@@ -240,9 +268,9 @@ func show_ability_owner(owner: String, owner_color: Color, selected_slot: int, c
 	var c := owner_color if has else Color(0.45, 0.45, 0.5)
 	_panel_style.bg_color = c.darkened(0.72)
 	_panel_style.border_color = c
-	# The selected tab's corner joins the panel.
-	_panel_style.corner_radius_top_left = 0 if has and selected_slot == 0 else 8
-	_panel_style.corner_radius_top_right = 0 if has and selected_slot == hero_btns.size() - 1 else 8
+	# The selected tab's corner joins the panel (no tabs: round corners).
+	_panel_style.corner_radius_top_left = 0 if has and selected_slot == 0 and not solo else 8
+	_panel_style.corner_radius_top_right = 0 if has and selected_slot == hero_btns.size() - 1 and not solo else 8
 	ability_title.text = ("%s's abilities" % owner) if has else "Select a hero to see their abilities"
 	ability_title.add_theme_color_override("font_color", c.lightened(0.3))
 	for i in hero_btns.size():

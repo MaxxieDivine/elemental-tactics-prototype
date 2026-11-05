@@ -70,7 +70,7 @@
     "name": "Knock over", "element": "fire", "shape": "single",
     "range": 1, "los": false, "needs_target": false,
     "damage": 0, "push": 0, "cooldown": 0,
-    "uses": 1, "source_tile": "cellar_lantern", "target_surface": "oil", "source_becomes": "floor",
+    "uses": 1, "source_tile": "cellar_lantern", "needs_text": "by lantern", "target_surface": "oil", "source_becomes": "floor",
     "desc": "Next to the lantern: tip it onto an oil tile beside it. Once per fight."
   },
   "bite": {

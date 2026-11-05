@@ -182,15 +182,15 @@ static func _cellar(pattern: String, x: int, y: int, ts: int, base: Color, n: in
 				return case_col
 			return base if y % 5 != 0 else base.darkened(0.25)
 		"oil":
-			var dx := absf(x - 7.5)
-			var dy := absf(y - 7.5)
-			if dx + dy > 10.5:
-				return Color("#5d544c").darkened(0.05)  # floor shows at the corners
-			if (x + y) % 9 == 0 and y < 9:
-				return Color("#6a5a7a")  # oily sheen
-			if (x - y) % 11 == 0:
-				return Color("#4a3a28")
-			return base if n > 30 else base.darkened(0.2)
+			# Fills the tile, so a patch reads as one slick; a rainbow sheen
+			# and darker swirls on top.
+			if (y == 4 and x >= 3 and x <= 7) or (y == 11 and x >= 9 and x <= 12):
+				return Color("#7a6a94")  # sheen
+			if (y == 5 and x >= 4 and x <= 6) or (y == 12 and x >= 10 and x <= 11):
+				return Color("#5a6a5a")
+			if (x * 3 + y * 5) % 13 == 0:
+				return base.darkened(0.3)
+			return base if n > 30 else base.lightened(0.08)
 		"puddle":
 			var dx := absf(x - 7.5)
 			var dy := absf(y - 7.5)
