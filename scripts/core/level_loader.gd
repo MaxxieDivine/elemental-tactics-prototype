@@ -7,6 +7,11 @@ const GameData = preload("res://scripts/core/game_data.gd")
 const EnemyAI = preload("res://scripts/core/enemy_ai.gd")
 
 
+## Builds the encounter with this id from data/encounters.json.
+static func build_encounter(encounter_id: String = GameData.DEFAULT_ENCOUNTER) -> Object:
+	return build(GameData.encounter(encounter_id))
+
+
 static func build(level: Dictionary = {}) -> Object:
 	if level.is_empty():
 		level = GameData.encounter()

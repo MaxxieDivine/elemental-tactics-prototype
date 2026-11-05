@@ -1,0 +1,56 @@
+{
+  "_comment": "Interaction id -> entries. The first entry whose 'requires' flags are all set (and whose 'unless' flags are all unset) plays. Optional on finish: 'set_flags', 'start_fight' (encounter id) with 'win_flags'. A line may set 'portrait' to another asset key.",
+
+  "innkeeper": [
+    {
+      "requires": ["read_letter"],
+      "lines": [
+        { "speaker": "believer",  "text": "Who sent my letter?" },
+        { "speaker": "innkeeper", "text": "The ferry will be back any day now." },
+        { "speaker": "believer",  "text": "That isn't what I asked." },
+        { "speaker": "innkeeper", "text": "Any day now." }
+      ]
+    },
+    {
+      "lines": [
+        { "speaker": "innkeeper", "text": "Welcome, welcome! We've all been so excited to meet you." },
+        { "speaker": "believer",  "text": "All of you? I only got the letter on Tuesday." },
+        { "speaker": "innkeeper", "text": "And such a lovely Tuesday it was." }
+      ]
+    }
+  ],
+
+  "welcome_banner": [
+    {
+      "lines": [
+        { "speaker": "believer", "text": "'Welcome, Heros.' Well, it's the thought that counts." }
+      ]
+    }
+  ],
+
+  "letter": [
+    {
+      "lines": [
+        { "speaker": "believer", "text": "My letter. Same as the day it came." },
+        { "speaker": "believer", "text": "That's strange. The ink is still wet." }
+      ],
+      "set_flags": ["read_letter"]
+    }
+  ],
+
+  "cellar_door": [
+    {
+      "requires": ["won_first_fight"],
+      "lines": [
+        { "speaker": "believer", "text": "It's quiet now. Somehow, that's worse." }
+      ]
+    },
+    {
+      "lines": [
+        { "speaker": "believer", "text": "There's a door under the inn. Why is it humming?" }
+      ],
+      "start_fight": "first_fight",
+      "win_flags": ["won_first_fight"]
+    }
+  ]
+}
