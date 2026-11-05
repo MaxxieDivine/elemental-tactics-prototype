@@ -2,11 +2,15 @@
 ## time, and an advance button. It shows whatever a Dialogue runner (data)
 ## says. One tap (anywhere on screen, or the button) finishes typing the line;
 ## the next tap advances. Emits `closed` after the last line.
+## When the line just left has a "then" step (a fade, a card, a world object
+## fading), the box holds still and emits `step_requested`; whoever shows the
+## step calls resume() to carry on with the next line (or close).
 ## Phone first: sits at the bottom inside the safe area; the button is at
 ## least 48 UI units (~48 CSS px); long text wraps and scrolls, never spills.
 extends Control
 
 signal closed
+signal step_requested(step: Dictionary)
 
 const AssetCatalog = preload("res://scripts/core/asset_catalog.gd")
 const Dialogue = preload("res://scripts/core/dialogue.gd")
@@ -28,6 +32,8 @@ var name_label: Label
 var text: RichTextLabel
 var next_btn: Button
 var _shown: float = 0.0  # characters revealed so far
+var busy := false  # a step is playing: taps wait
+var _more := false  # a line follows the step
 
 
 func _ready() -> void:
@@ -132,6 +138,8 @@ func top() -> float:
 ## Shows the runner's current line. The runner must already be started.
 func open(dialogue_runner, speed: float = 45.0) -> void:
 	runner = dialogue_runner
+	busy = false
+	next_btn.disabled = false
 	chars_per_sec = speed
 	visible = true
 	_show_line()
@@ -147,13 +155,34 @@ func is_typing() -> bool:
 
 ## The single input: finish typing, else advance (and close after the last line).
 func tap() -> void:
-	if not visible:
+	if not visible or busy:
 		return
 	if is_typing():
 		text.visible_characters = -1
 		_update_button()
 		return
-	if runner.advance():
+	var more: bool = runner.advance()
+	var step: Dictionary = runner.take_step()
+	if not step.is_empty():
+		busy = true
+		_more = more
+		next_btn.disabled = true
+		step_requested.emit(step)
+		return
+	_carry_on(more)
+
+
+## After a step: shows the next line, or closes if the entry is over.
+func resume() -> void:
+	if not busy:
+		return
+	busy = false
+	next_btn.disabled = false
+	_carry_on(_more)
+
+
+func _carry_on(more: bool) -> void:
+	if more:
 		_show_line()
 	else:
 		visible = false

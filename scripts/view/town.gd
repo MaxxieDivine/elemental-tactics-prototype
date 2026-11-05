@@ -8,6 +8,11 @@
 ## routes), Dialogue (data + flags), GameSession (flags and where the player
 ## is, across maps and fights). When a conversation changes a flag that moves,
 ## shows or hides something on this map, the map is rebuilt behind a short fade.
+## Lighting comes from the map's data preset for the story's time of day
+## (Lighting): tinted tiles and actors plus drawn light pools (TownLighting).
+## Walking onto a trigger zone starts its interaction. A dialogue line's
+## "then" step plays here: a fade with a text card (and a new time of day,
+## and where the player stands), or a world object fading out or in.
 ## Asks the app for a fight with `fight_requested`; never runs one itself.
 extends Node2D
 
@@ -19,6 +24,8 @@ const GameData = preload("res://scripts/core/game_data.gd")
 const TownMap = preload("res://scripts/core/town_map.gd")
 const Dialogue = preload("res://scripts/core/dialogue.gd")
 const GameSession = preload("res://scripts/core/game_session.gd")
+const Lighting = preload("res://scripts/core/lighting.gd")
+const TownLighting = preload("res://scripts/view/town_lighting.gd")
 const ScreenMetrics = preload("res://scripts/view/screen_metrics.gd")
 const TownTiles = preload("res://scripts/view/town_tiles.gd")
 const TownActor = preload("res://scripts/view/town_actor.gd")
@@ -39,9 +46,15 @@ var step_time: float = 0.16
 var fade_time: float = 0.35
 var pace_step_time: float = 0.45  # seconds per pacing step
 var pace_wait: float = 1.2  # pause at each pace point
+var card_time: float = 1.8  # seconds a transition card stays up
+var object_fade_time: float = 1.4  # seconds a world object takes to fade out/in
 
 var world_root: Node2D  # everything belonging to the current map
-var ground: TileMapLayer
+var ground: TileMapLayer  # every tile without its own night tint
+var ground_layers: Array = []  # ground, then one layer per preset tile tint
+var lighting  # TownLighting: light pools and window panes
+var light: Dictionary = {}  # the lighting preset in use (Lighting.preset_for)
+var time_of_day: String = ""  # the time the map was built for
 var sorted: Node2D  # y-sorted actors
 var marker: Node2D
 var camera: Camera2D
@@ -49,6 +62,9 @@ var ui: CanvasLayer
 var dialogue_box
 var menu_btn: Button
 var fade: ColorRect
+var card: Label  # transition card text, over the fade
+var card_catch: Control  # takes the tap that skips a card
+var _card_skip := false
 var transitioning := false
 var player
 var actors: Dictionary = {}  # id -> TownActor
@@ -74,6 +90,8 @@ func _ready() -> void:
 	fade_time = float(world.get("fade_time", 0.35))
 	pace_step_time = float(world.get("pace_step_time", pace_step_time))
 	pace_wait = float(world.get("pace_wait", pace_wait))
+	card_time = float(world.get("card_time", card_time))
+	object_fade_time = float(world.get("object_fade_time", object_fade_time))
 	session = GameSession.get_current()
 	dialogue = Dialogue.new(session.flags)
 	camera = Camera2D.new()
@@ -128,13 +146,12 @@ func current_spot() -> Dictionary:
 
 
 func _build_world(facing: String) -> void:
-	ground = TileMapLayer.new()
-	ground.tile_set = TownTiles.build(world)
-	for y in map.size.y:
-		for x in map.size.x:
-			var c := Vector2i(x, y)
-			ground.set_cell(c, TownTiles.SOURCE_ID, TownTiles.atlas_of(map.tile_def(c)))
-	world_root.add_child(ground)
+	time_of_day = session.flags.time_of_day()
+	light = Lighting.preset_for(def, time_of_day)
+	_build_ground()
+	lighting = TownLighting.new()
+	lighting.setup(Lighting.glows(map, light, ts))
+	world_root.add_child(lighting)
 
 	marker = Node2D.new()
 	marker.draw.connect(_draw_marker)
@@ -147,16 +164,49 @@ func _build_world(facing: String) -> void:
 	for n in def.get("npcs", []):
 		var c: Dictionary = chars.get(n["character"], {})
 		var a = _add_actor(n["id"], "character", map.cell_of_thing(n["id"]), c.get("sprite", ""), c.get("color", "#888888"), "", n.get("facing", "down"), str(n.get("mood", "")))
+		a.modulate = Lighting.tint(light, Lighting.tint_key("npc", n))
 		if map.pacers.has(n["id"]):
 			pacing[n["id"]] = {"from": a.position, "t": 0.0, "dur": float(n.get("pace_step_time", pace_step_time)), "wait": float(n.get("pace_wait", pace_wait))}
 	for o in def.get("objects", []):
-		_add_actor(o["id"], "object", TownMap.cell_of(o["cell"]), o.get("sprite", ""), o.get("color", "#888888"), o.get("shape", ""))
+		var a = _add_actor(o["id"], "object", TownMap.cell_of(o["cell"]), o.get("sprite", ""), o.get("color", "#888888"), o.get("shape", ""))
+		a.modulate = Lighting.tint(light, Lighting.tint_key("object", o))
 	for i in def.get("props", []).size():
 		var p: Dictionary = def["props"][i]
-		_add_actor("prop_%d" % i, "prop", TownMap.cell_of(p["cell"]), p.get("sprite", ""), p.get("color", "#888888"), p.get("shape", ""))
+		var a = _add_actor("prop_%d" % i, "prop", TownMap.cell_of(p["cell"]), p.get("sprite", ""), p.get("color", "#888888"), p.get("shape", ""))
+		a.modulate = Lighting.tint(light, Lighting.tint_key("prop", p))
 
 	var pc: Dictionary = chars.get(world["player"]["character"], {})
 	player = _add_actor("player", "character", player_cell, pc.get("sprite", ""), pc.get("color", "#ffffff"), "", facing)
+	player.modulate = Lighting.tint(light, "actor_tint")
+
+
+## The tiles, tinted for the lighting preset: one layer for the shared
+## "tint", plus one per legend char with its own "tile_tints" colour.
+func _build_ground() -> void:
+	var tile_set: TileSet = TownTiles.build(world)
+	var by_tint := {}  # legend char with its own tint -> layer
+	ground_layers = []
+	ground = TileMapLayer.new()
+	ground.tile_set = tile_set
+	ground.modulate = Lighting.tint(light, "tint")
+	world_root.add_child(ground)
+	ground_layers.append(ground)
+	var own: Dictionary = light.get("tile_tints", {})
+	for y in map.size.y:
+		for x in map.size.x:
+			var c := Vector2i(x, y)
+			var ch: String = map.tile_char(c)
+			var layer: TileMapLayer = ground
+			if own.has(ch):
+				if not by_tint.has(ch):
+					layer = TileMapLayer.new()
+					layer.tile_set = tile_set
+					layer.modulate = Lighting.tile_tint(light, ch)
+					world_root.add_child(layer)
+					ground_layers.append(layer)
+					by_tint[ch] = layer
+				layer = by_tint[ch]
+			layer.set_cell(c, TownTiles.SOURCE_ID, TownTiles.atlas_of(map.tile_def(c)))
 
 
 func _add_actor(id: String, kind: String, cell: Vector2i, sprite: String, color: String, shape: String, facing: String = "down", mood: String = ""):
@@ -192,12 +242,32 @@ func _build_ui() -> void:
 	dialogue_box = DialogueScene.instantiate()
 	root.add_child(dialogue_box)
 	dialogue_box.closed.connect(_on_dialogue_closed)
+	dialogue_box.step_requested.connect(_on_dialogue_step)
 	# Map-change fade: drawn over everything, never takes input itself.
 	fade = ColorRect.new()
 	fade.color = Color(0.03, 0.02, 0.04, 0.0)
 	fade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(fade)
+	# Transition card ("Later that night"): text over the fade. While it is
+	# up, a tap or click anywhere skips it.
+	card_catch = Control.new()
+	card_catch.set_anchors_preset(Control.PRESET_FULL_RECT)
+	card_catch.mouse_filter = Control.MOUSE_FILTER_STOP
+	card_catch.visible = false
+	card_catch.gui_input.connect(_on_card_input)
+	root.add_child(card_catch)
+	card = Label.new()
+	card.set_anchors_preset(Control.PRESET_FULL_RECT)
+	card.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	card.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	card.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	card.add_theme_font_size_override("font_size", 26)
+	card.add_theme_color_override("font_color", Color("#f4efe1"))
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.modulate.a = 0.0
+	card.visible = false
+	root.add_child(card)
 
 
 func _on_menu() -> void:
@@ -213,6 +283,8 @@ func relayout() -> void:
 	var ins: Array = _metrics["insets"]
 	menu_btn.position = Vector2(ins[3] + 8, ins[0] + 8)
 	menu_btn.size = Vector2(76, 48)
+	card.offset_left = ins[3] + 24
+	card.offset_right = -ins[1] - 24
 	dialogue_box.layout(size, ins)
 	# Each art pixel covers a whole number of device pixels, so pixel art
 	# stays crisp at any screen density.
@@ -348,6 +420,13 @@ func _walk(delta: float) -> void:
 	if _step_t <= 0.0:
 		_step_t = 0.0
 		player.position = feet(player_cell)
+		var trig: Dictionary = map.trigger_at(player_cell, session.flags)
+		if not trig.is_empty():
+			path.clear()
+			target_id = ""
+			_set_path([], NO_CELL)
+			run_trigger(trig)
+			return
 		if path.is_empty():
 			_set_path([], NO_CELL)
 			_arrive()
@@ -397,10 +476,128 @@ func go_through(exit_id: String) -> void:
 
 ## Starts an interaction by its data id (from the NPC/object definition).
 func interact(id: String) -> void:
-	var interaction := _interaction_of(id)
+	play_interaction(_interaction_of(id))
+
+
+## Plays an interaction from dialogue.json by its id.
+func play_interaction(interaction: String) -> bool:
 	if interaction == "" or not dialogue.start(interaction):
-		return
+		return false
 	dialogue_box.open(dialogue, float(world.get("text_speed", 45)))
+	return true
+
+
+## The player walked onto a trigger zone (its data from the map's
+## "triggers"): stop, turn its way, and start its interaction. A "once"
+## trigger is remembered in the story so it never runs again.
+func run_trigger(trig: Dictionary) -> void:
+	if bool(trig.get("once", false)):
+		session.flags.mark_ran(str(trig["id"]))
+	if trig.has("facing"):
+		player.facing = str(trig["facing"])
+	session.set_spot(map_id, player_cell, player.facing)
+	play_interaction(str(trig.get("interaction", "")))
+
+
+# =========================================================================
+# Dialogue steps: a line's "then" (see Dialogue). Story effects are already
+# applied by the runner; this only shows them.
+# =========================================================================
+
+func _on_dialogue_step(step: Dictionary) -> void:
+	await play_step(step)
+	dialogue_box.resume()
+
+
+## True when a step needs the screen to fade (a card, a new time, a move).
+static func step_fades_screen(step: Dictionary) -> bool:
+	return step.has("card") or step.has("set_time") or step.has("place")
+
+
+func play_step(step: Dictionary) -> void:
+	transitioning = true
+	var t := float(step.get("fade_time", object_fade_time))
+	await _fade_things(step.get("fade_out", []), 1.0, 0.0, t)
+	if step_fades_screen(step):
+		await _screen_step(step)
+	else:
+		# Only things fading out/in changed: rebuild in place without a fade.
+		var fading_in: Array = step.get("fade_in", [])
+		load_map(map_id, player_cell, player.facing)
+		for id in fading_in:
+			_set_thing_alpha(id, 0.0)
+		await _fade_things(fading_in, 0.0, 1.0, t)
+	transitioning = false
+
+
+## Fade out, card up, rebuild for the new time and flags with the player
+## at "place" (else where they stand), card down, fade in.
+func _screen_step(step: Dictionary) -> void:
+	var half := maxf(fade_time, float(world.get("card_fade_time", fade_time)))
+	await _tween_fade(1.0, half)
+	var text := str(step.get("card", ""))
+	var cell: Vector2i = TownMap.cell_of(step["place"]) if step.has("place") else player_cell
+	load_map(map_id, cell, str(step.get("facing", player.facing)))
+	if text != "":
+		await show_card(text, float(step.get("card_time", card_time)))
+	await _tween_fade(0.0, half)
+
+
+func _tween_fade(to: float, dur: float) -> void:
+	if dur > 0.0:
+		var tw := create_tween()
+		tw.tween_property(fade, "color:a", to, dur)
+		await tw.finished
+	fade.color.a = to
+
+
+## Shows a transition card for `secs` seconds (a tap skips it).
+func show_card(text: String, secs: float) -> void:
+	card.text = text
+	card.visible = true
+	card_catch.visible = true
+	_card_skip = false
+	var t := 0.0
+	var fade_in := 0.25
+	while t < secs and not _card_skip:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		card.modulate.a = clampf(t / fade_in, 0.0, 1.0) if secs > 0.0 else 1.0
+	card.visible = false
+	card.modulate.a = 0.0
+	card_catch.visible = false
+
+
+## True while a transition card is up.
+func card_showing() -> bool:
+	return card.visible
+
+
+func _on_card_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		_card_skip = true
+		card_catch.accept_event()
+
+
+## Fades world things (and their glows) from one alpha to another.
+func _fade_things(ids: Array, from: float, to: float, dur: float) -> void:
+	var live: Array = ids.filter(func(id): return actors.has(id))
+	if live.is_empty():
+		return
+	var t := 0.0
+	while dur > 0.0 and t < dur:
+		for id in live:
+			_set_thing_alpha(id, lerpf(from, to, t / dur))
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	for id in live:
+		_set_thing_alpha(id, to)
+
+
+func _set_thing_alpha(id: String, a: float) -> void:
+	if actors.has(id):
+		actors[id].modulate.a = a
+	lighting.set_alpha(id, a)
 
 
 func _on_dialogue_closed() -> void:
@@ -418,7 +615,7 @@ func _on_dialogue_closed() -> void:
 ## if anything changed.
 func refresh_world() -> bool:
 	var now = TownMap.load_map(map_id, session.flags)
-	if now == null or (now.def.get("npcs", []) == def.get("npcs", []) and now.def.get("objects", []) == def.get("objects", [])):
+	if now == null or (now.def.get("npcs", []) == def.get("npcs", []) and now.def.get("objects", []) == def.get("objects", []) and session.flags.time_of_day() == time_of_day):
 		return false
 	transitioning = true
 	var facing: String = player.facing
