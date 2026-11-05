@@ -1,4 +1,4 @@
-## Top-level screen switcher: start menu -> town -> fight -> town.
+## Top-level screen switcher: start menu -> town (any map) -> fight -> town.
 ## Owns no rules: GameSession (core) holds flags, the town spot and the fight
 ## in progress; each screen only reports what the player did.
 extends Node
@@ -42,7 +42,7 @@ func show_town() -> void:
 
 
 func start_town_fight(request: Dictionary) -> void:
-	session.begin_fight(request, screen.player_cell, screen.player.facing)
+	session.begin_fight(request, screen.current_spot())
 	_show_fight()
 
 

@@ -6,7 +6,7 @@ A small Godot 4 prototype of one turn-based tactics fight. It exists to answer a
 
 You have three heroes, one each for water, lightning and fire, on a 10x10 grid. You fight five enemies that show their plans before they act. You set up combos: soak tiles and then electrify them, ignite oil next to an explosive barrel, or boil water into steam to block a sniper's sight. Then you watch the chain play out one step at a time.
 
-Milestone 2 adds a **walkable town slice** in front of that fight: a small dock and town square where you tap to walk, talk to the innkeeper, read a banner and your letter, and open a humming cellar door that starts the fight. One clue changes what the innkeeper says, and winning changes the cellar door.
+In front of that fight is a small **walkable world**. You play Agador: start on the dock, read a banner and your letter, find a locked cellar hatch humming against the inn wall, then go inside the inn. The lobby has the innkeeper, a guest book and a key board; the lounge has a fireplace and an arcade cabinet that has no business being there; upstairs, Room 1 is open and Rooms 2 to 4 are locked. Your letter changes what the innkeeper and the guest book say. The arcade's **Insert coin** starts the fight, and you come back beside the cabinet afterwards (win or lose). After a win the arcade shows a high score you never entered, and you can play again.
 
 Everything is drawn with simple placeholder shapes and generated tiles. There's no final art, audio, saves or progression.
 
@@ -24,10 +24,13 @@ The start screen has two buttons: **Town** (the walkable slice) and **Fight** (t
 |---|---|
 | Tap (or click) a tile | Walk there |
 | Tap a person or object | Walk next to it, face it, and talk / look |
+| Tap a door, doorway or stairs | Walk next to it, then fade to the next room |
 | Tap anywhere during dialogue | First tap shows the whole line, next tap goes on (or use the **Next** button) |
 | **Menu** | Back to the start screen (story flags are kept until you reload) |
 
-Try: read the banner, talk to the innkeeper, read your letter on the dock, talk to the innkeeper again, then tap the cellar door beside the inn. Win or lose, you come back to the town where you stood. After a win the door says something new.
+Try: read the banner, tap the hatch beside the inn, go in and talk to the innkeeper, check the guest book and key board, then go left into the lounge and tap the arcade. Win or lose, you come back next to the arcade. Go upstairs and try the doors. Then go back out, read the letter on the dock, and talk to the innkeeper and the guest book again.
+
+Menu remembers where you were: tapping Town again puts you back there. Story flags last until you reload the page.
 
 ## Fight controls
 
@@ -35,7 +38,7 @@ The same controls work for mouse and touch: **tap (or click) to select, then tap
 
 | Do this | To |
 |---|---|
-| Tap a hero, or its button under the board | Select it |
+| Tap a hero, or its tab under the board | Select it. The panel under the tabs shows that hero's abilities |
 | Tap a blue tile, then tap it again | Move there (the first tap shows the path) |
 | Tap an ability button | Aim it (yellow tiles are valid targets) |
 | Tap a yellow tile, then tap it again | Use the ability (the first tap previews who and what gets hit, including chain reactions) |
@@ -62,12 +65,15 @@ Each hero can **move once and act once per turn, in either order**. On desktop t
 
 ## Tuning
 
-### Town, story and art (no code changes)
+### World, story and art (no code changes)
 
-- **Dialogue:** `data/dialogue.json`. Each interaction id (`innkeeper`, `welcome_banner`, `letter`, `cellar_door`) has a list of entries; the first one whose `requires` flags are all set (and `unless` flags unset) plays. An entry can `set_flags` and `start_fight` (an encounter id) with `win_flags`.
-- **Names and colours:** `data/characters.json` for town speakers; `data/heroes.json` `name` for Tide, Volt and Ember.
-- **Town map:** `data/town.json`: the map rows and tile legend, player start, NPC/object/prop placements, `zoom`, walking `step_time` and dialogue `text_speed` (characters per second).
-- **Art:** `data/assets.json` maps keys (`believer.portrait.neutral`, `town.tiles`, ...) to files. Drop a PNG in `art/` and point its key at it. See `art/README.md` for formats. Missing files show a placeholder and log a warning.
+- **Dialogue:** `data/dialogue.json`. Each interaction id (`innkeeper`, `guest_book`, `arcade`, `room_4_door`, ...) has a list of entries; the first one whose `requires` flags are all set (and `unless` flags unset) plays. An entry can `set_flags` and `start_fight` (an encounter id) with `win_flags`. A line can set `"button"` to label its action button (the arcade uses `"Insert coin"`); `_buttons` holds the defaults (`Next`, `Close`, `Skip`).
+- **Names and colours:** `data/characters.json` for town speakers (Agador's id is `agador`; change `name` to rename him). `data/heroes.json` `name` for Tide, Volt and Ember.
+- **Maps:** one file per map in `data/maps/` (`town`, `lobby`, `lounge`, `hallway`, `room_1`). Each has `map` rows using the shared tile legend in `data/town.json`, plus `npcs`, `objects` (with an `interaction` id), `props`, and `exits`. An NPC or object can list `stand` cells to say where the player uses it from (the hatch is used from the side, the innkeeper across the desk). An optional `zoom` overrides the world zoom for one map.
+- **Exits:** `{"id", "cell" or "cells", "to": map id, "arrive": [x, y], "facing"}`. Exits sit on a door, doorway or stairs tile. To add a room, make a new `data/maps/<id>.json` and point an exit at it (with one back).
+- **World settings:** `data/town.json`: where a new story starts (`player`: character, map, cell, facing), the tile legend (`atlas` cell, placeholder `color` and `pattern`), `zoom`, walking `step_time`, dialogue `text_speed` (characters per second) and the map-change `fade_time`.
+- **Art:** `data/assets.json` maps keys (`agador.portrait.neutral`, `town.tiles`, `inn.arcade`, ...) to files. Drop a PNG in `art/` and point its key at it. See `art/README.md` for formats. Missing files show a placeholder and log a warning.
+- **Debug:** `data/settings.json` `debug_tile_text: true` shows raw tile text such as `Tile 5,6: floor` in the fight's info panel.
 
 ### Fight
 
@@ -86,7 +92,7 @@ Optional art: put `art/<sprite key>.png` next to the project (keys are in the da
 ```sh
 godot --headless --path . --script res://tests/run_tests.gd
 ```
-This runs every rules, story, town and asset test, a UI smoke test that taps through the fight in a phone layout and a desktop layout, and a flow test that plays the real app on a phone: town, dialogue, fight (loss and win), back to town, and the direct Fight option. It exits non-zero on failure.
+This runs every rules, story, map, asset and UI-text test, a UI smoke test that taps through the fight in a phone layout and a desktop layout, and a flow test that plays the real app on a phone: town, every inn room, every interaction, the arcade fight (loss, win, replay) and back beside the arcade, the letter changing the innkeeper and guest book, and the direct Fight option. It exits non-zero on failure. With a display (for example `xvfb-run`), add `-- --shots=<dir>` to save screenshots.
 
 ## Web build and deployment
 
@@ -94,4 +100,4 @@ This runs every rules, story, town and asset test, a UI smoke test that taps thr
 
 ## Status
 
-Milestone 2: one walkable town slice connected to one fight, on desktop and phone browsers. Scope is intentionally tiny: no saves, branching choices, quest log, party following, final art or audio.
+Milestone 3: the town and five connected spaces (town, lobby, lounge, upstairs hallway, Room 1) built from data, with the fight launched from an in-world arcade cabinet, on desktop and phone browsers. Scope is intentionally tiny: no cellar interior, other room interiors, saves, inventory, branching choices, quest log, party following, final art or audio.

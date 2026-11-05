@@ -1,20 +1,21 @@
 {
-  "_comment": "Interaction id -> entries. The first entry whose 'requires' flags are all set (and whose 'unless' flags are all unset) plays. Optional on finish: 'set_flags', 'start_fight' (encounter id) with 'win_flags'. A line may set 'portrait' to another asset key.",
+  "_comment": "Interaction id -> entries. The first entry whose 'requires' flags are all set (and whose 'unless' flags are all unset) plays. Optional on finish: 'set_flags', 'start_fight' (encounter id) with 'win_flags'. A line may set 'portrait' to another asset key, and 'button' to the label of its action button (else the _buttons defaults: 'next' on a middle line, 'close' on the last, 'skip' while typing).",
+  "_buttons": { "next": "Next", "close": "Close", "skip": "Skip" },
 
   "innkeeper": [
     {
       "requires": ["read_letter"],
       "lines": [
-        { "speaker": "believer",  "text": "Who sent my letter?" },
+        { "speaker": "agador",  "text": "Who sent my letter?" },
         { "speaker": "innkeeper", "text": "The ferry will be back any day now." },
-        { "speaker": "believer",  "text": "That isn't what I asked." },
+        { "speaker": "agador",  "text": "That isn't what I asked." },
         { "speaker": "innkeeper", "text": "Any day now." }
       ]
     },
     {
       "lines": [
         { "speaker": "innkeeper", "text": "Welcome, welcome! We've all been so excited to meet you." },
-        { "speaker": "believer",  "text": "All of you? I only got the letter on Tuesday." },
+        { "speaker": "agador",  "text": "All of you? I only got the letter on Tuesday." },
         { "speaker": "innkeeper", "text": "And such a lovely Tuesday it was." }
       ]
     }
@@ -23,7 +24,7 @@
   "welcome_banner": [
     {
       "lines": [
-        { "speaker": "believer", "text": "'Welcome, Heros.' Well, it's the thought that counts." }
+        { "speaker": "agador", "text": "'Welcome, Heros.' Well, it's the thought that counts." }
       ]
     }
   ],
@@ -31,26 +32,110 @@
   "letter": [
     {
       "lines": [
-        { "speaker": "believer", "text": "My letter. Same as the day it came." },
-        { "speaker": "believer", "text": "That's strange. The ink is still wet." }
+        { "speaker": "agador", "text": "My letter. Same as the day it came." },
+        { "speaker": "agador", "text": "That's strange. The ink is still wet." }
       ],
       "set_flags": ["read_letter"]
     }
   ],
 
-  "cellar_door": [
+  "cellar_hatch": [
     {
-      "requires": ["won_first_fight"],
       "lines": [
-        { "speaker": "believer", "text": "It's quiet now. Somehow, that's worse." }
+        { "speaker": "agador", "text": "It's locked. Why is it humming?" }
+      ]
+    }
+  ],
+
+  "guest_book": [
+    {
+      "requires": ["read_letter"],
+      "lines": [
+        { "speaker": "agador", "text": "My name's already in here. I haven't signed anything." },
+        { "speaker": "agador", "text": "The ink's wet. Just like my letter." }
       ]
     },
     {
       "lines": [
-        { "speaker": "believer", "text": "There's a door under the inn. Why is it humming?" }
+        { "speaker": "agador", "text": "My name's already in here. I haven't signed anything." }
+      ]
+    }
+  ],
+
+  "key_board": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "Keys for Rooms 2 and 3. Nothing for Room 4." }
+      ]
+    }
+  ],
+
+  "fireplace": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "It's the coziest room I've ever seen. I don't trust it." }
+      ]
+    }
+  ],
+
+  "arcade": [
+    {
+      "requires": ["won_first_fight"],
+      "lines": [
+        { "speaker": "agador", "text": "High score: Agador. I never entered my name." },
+        { "speaker": "agador", "text": "One more game.", "button": "Insert coin" }
       ],
       "start_fight": "first_fight",
       "win_flags": ["won_first_fight"]
+    },
+    {
+      "lines": [
+        { "speaker": "agador",    "text": "Who put this in an inn?" },
+        { "speaker": "innkeeper", "text": "Put what, dear?" },
+        { "speaker": "agador",    "text": "The screen says to insert a coin.", "button": "Insert coin" }
+      ],
+      "start_fight": "first_fight",
+      "win_flags": ["won_first_fight"]
+    }
+  ],
+
+  "room_1_key": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "A key to a room I never booked." }
+      ]
+    }
+  ],
+
+  "room_1_bed": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "Turned down, with a mint on the pillow. Very welcoming. Very unsettling." }
+      ]
+    }
+  ],
+
+  "room_2_door": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "Locked. The card says Reserved, but not for whom." }
+      ]
+    }
+  ],
+
+  "room_3_door": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "Also reserved. Business must be booming." }
+      ]
+    }
+  ],
+
+  "room_4_door": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "Locked, with no key on the board. There's a light on under the door." }
+      ]
     }
   ]
 }

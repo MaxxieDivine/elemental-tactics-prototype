@@ -1,0 +1,47 @@
+{
+  "_comment": "Outside the inn: the square, the dock and the cellar hatch. Rows use the tile legend in data/town.json. npcs/objects/props block movement and are depth-sorted with the player. 'stand' (optional) lists the cells the player may use a thing from (default: any free side). Exits: tapping one walks next to it, then fades to map 'to', arriving at 'arrive' facing 'facing'.",
+  "name": "Town",
+  "map": [
+    "gggggggggggggggg",
+    "ggRRRRRRRRRRggfg",
+    "ggRRRRRRRRRRgggg",
+    "ggWwWWDDWWwWgggg",
+    "gg..........pggg",
+    "gf..........pggg",
+    "gg..........ppgg",
+    "gg............pg",
+    "gg..........ppgg",
+    "ggf.........pggg",
+    "gggg....ppppgggg",
+    "ssssss==ssssssss",
+    "~~~~~~==~~~~~~~~",
+    "~~~~~~==~~~~~~~~",
+    "~~~~~~==~~~~~~~~",
+    "~~~~====~~~~~~~~",
+    "~~~~====~~~~~~~~",
+    "~~~~~~~~~~~~~~~~"
+  ],
+
+  "npcs": [],
+
+  "objects": [
+    { "id": "welcome_banner", "name": "Welcome banner", "sprite": "town.welcome_banner", "shape": "banner", "color": "#c0392b", "cell": [9, 8],  "interaction": "welcome_banner" },
+    { "id": "letter",         "name": "Letter",         "sprite": "town.letter",         "shape": "letter", "color": "#f4efe1", "cell": [4, 16], "interaction": "letter" },
+    { "id": "cellar_hatch",   "name": "Cellar hatch",   "sprite": "town.cellar_hatch",   "shape": "hatch",  "color": "#6b4a2b", "cell": [9, 4],  "interaction": "cellar_hatch", "stand": [[8, 4], [10, 4]] }
+  ],
+
+  "props": [
+    { "sprite": "town.tree", "shape": "tree", "color": "#2f6b34", "cell": [13, 2] },
+    { "sprite": "town.tree", "shape": "tree", "color": "#2f6b34", "cell": [15, 6] },
+    { "sprite": "town.tree", "shape": "tree", "color": "#2f6b34", "cell": [1, 8] },
+    { "sprite": "town.tree", "shape": "tree", "color": "#2f6b34", "cell": [14, 10] },
+    { "sprite": "town.tree", "shape": "tree", "color": "#2f6b34", "cell": [0, 1] },
+    { "sprite": "town.lamp", "shape": "lamp", "color": "#3b3b46", "cell": [3, 4] },
+    { "sprite": "town.lamp", "shape": "lamp", "color": "#3b3b46", "cell": [11, 9] },
+    { "sprite": "town.crate", "shape": "crate", "color": "#a0723f", "cell": [7, 16] }
+  ],
+
+  "exits": [
+    { "id": "inn_front_door", "name": "Inn door", "cells": [[6, 3], [7, 3]], "to": "lobby", "arrive": [4, 7], "facing": "up" }
+  ]
+}

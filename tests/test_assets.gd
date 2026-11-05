@@ -50,3 +50,17 @@ func test_existing_file_loads_by_key() -> void:
 	check(AssetCatalog.warned.is_empty(), "no warning for an existing file")
 	GameData.get_json("assets")["paths"].erase("test.real")
 	AssetCatalog.clear_cache()
+
+
+func test_every_map_sprite_key_is_listed() -> void:
+	var paths: Dictionary = GameData.get_json("assets")["paths"]
+	for f in DirAccess.get_files_at("res://data/maps/"):
+		if not f.ends_with(".json"):
+			continue
+		var def: Dictionary = GameData.get_json("maps/" + f.get_basename())
+		for t in def.get("objects", []) + def.get("props", []):
+			var key: String = t.get("sprite", "")
+			if key != "":
+				check(paths.has(key), "%s: sprite key '%s' is listed in assets.json" % [f, key])
+	for c in GameData.get_json("characters").values():
+		check(paths.has(c["sprite"]) and paths.has(c["portrait"]), "%s sprite and portrait keys are listed" % c["name"])

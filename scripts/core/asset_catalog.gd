@@ -1,5 +1,5 @@
 ## Asset catalog: game code and content refer to art by key (for example
-## "believer.portrait.neutral" or "town.tiles"), never by file path.
+## "agador.portrait.neutral" or "town.tiles"), never by file path.
 ## data/assets.json maps keys to paths. Keys that are not listed fall back to
 ## the convention res://art/<key>.png, so the fight's sprite keys keep working.
 ##

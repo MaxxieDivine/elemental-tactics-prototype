@@ -1,12 +1,17 @@
-## Town screen controller. Builds the TileMapLayer and the depth-sorted
-## actors from data/town.json, turns taps into "walk here" or "walk next to
-## that and interact", and plays interactions through the dialogue box.
-## Rules live in core: TownMap (paths), Dialogue (data + flags), GameSession.
+## Town screen controller for every walkable map (the town outside, the inn's
+## rooms). Builds the TileMapLayer and the depth-sorted actors for the current
+## map from data/maps/<id>.json, turns taps into "walk here" or "walk next to
+## that and use it", plays interactions through the dialogue box, and goes
+## through exits with a short fade. Nothing here is specific to one map:
+## exits, arrival cells and facing all come from data.
+## Rules live in core: TownMap (paths, exits), Dialogue (data + flags),
+## GameSession (flags and where the player is, across maps and fights).
 ## Asks the app for a fight with `fight_requested`; never runs one itself.
 extends Node2D
 
 signal fight_requested(request: Dictionary)
 signal menu_requested
+signal map_changed(map_id: String)
 
 const GameData = preload("res://scripts/core/game_data.gd")
 const TownMap = preload("res://scripts/core/town_map.gd")
@@ -20,14 +25,18 @@ const DialogueScene = preload("res://scenes/dialogue_box.tscn")
 const NO_CELL := Vector2i(-1, -1)
 const TAP_SLOP := 14.0
 
-var def: Dictionary
+var world: Dictionary  # data/town.json: legend, tuning, start
+var def: Dictionary  # the current map's data
+var map_id: String = ""
 var map  # TownMap
 var session  # GameSession
 var dialogue  # Dialogue runner
 var ts: int = 16
 var zoom: float = 2.5  # world pixels -> UI units (snapped to whole device pixels)
 var step_time: float = 0.16
+var fade_time: float = 0.35
 
+var world_root: Node2D  # everything belonging to the current map
 var ground: TileMapLayer
 var sorted: Node2D  # y-sorted actors
 var marker: Node2D
@@ -35,12 +44,14 @@ var camera: Camera2D
 var ui: CanvasLayer
 var dialogue_box
 var menu_btn: Button
+var fade: ColorRect
+var transitioning := false
 var player
 var actors: Dictionary = {}  # id -> TownActor
 
 var player_cell: Vector2i
 var path: Array = []  # cells still to walk
-var target_id: String = ""  # interact with this on arrival
+var target_id: String = ""  # use this (interaction or exit) on arrival
 var _step_from: Vector2
 var _step_t: float = 0.0  # time left in the current step
 var _step_dur: float = 1.0
@@ -51,35 +62,78 @@ var _metrics: Dictionary = {}
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	def = GameData.get_json("town")
-	ts = int(def.get("tile_size", 16))
-	step_time = float(def.get("step_time", 0.16))
+	world = TownMap.world()
+	ts = int(world.get("tile_size", 16))
+	step_time = float(world.get("step_time", 0.16))
+	fade_time = float(world.get("fade_time", 0.35))
 	session = GameSession.get_current()
-	map = TownMap.from_data(def)
 	dialogue = Dialogue.new(session.flags)
-	_build_world()
+	camera = Camera2D.new()
+	add_child(camera)
+	camera.make_current()
 	_build_ui()
+	var spot: Dictionary = session.spot()
+	if not load_map(spot["map"], spot["cell"], spot["facing"]):
+		var start: Dictionary = GameSession.start_spot()
+		load_map(start["map"], start["cell"], start["facing"])
 	get_tree().root.size_changed.connect(relayout)
 	relayout()
 	_snap_camera()
 
 
-func _build_world() -> void:
+## Shows map `id` with the player on `cell` facing `facing`. Returns false
+## (and changes nothing) if the map does not exist.
+func load_map(id: String, cell: Vector2i, facing: String) -> bool:
+	var m = TownMap.load_map(id)
+	if m == null:
+		return false
+	map = m
+	map_id = id
+	def = TownMap.map_def(id)
+	path = []
+	target_id = ""
+	_step_t = 0.0
+	if world_root != null:
+		remove_child(world_root)
+		world_root.queue_free()
+	actors.clear()
+	world_root = Node2D.new()
+	add_child(world_root)
+	move_child(world_root, 0)
+	player_cell = cell
+	if not map.is_walkable(cell):
+		push_warning("Map '%s': arrival cell %s is not walkable." % [id, str(cell)])
+	_build_world(facing)
+	session.set_spot(map_id, player_cell, facing)
+	if camera != null and ui != null:
+		if not _metrics.is_empty():
+			relayout()  # a map may set its own zoom
+		_snap_camera()
+	map_changed.emit(map_id)
+	return true
+
+
+## Where the player is right now: {"map", "cell", "facing"}.
+func current_spot() -> Dictionary:
+	return {"map": map_id, "cell": player_cell, "facing": player.facing}
+
+
+func _build_world(facing: String) -> void:
 	ground = TileMapLayer.new()
-	ground.tile_set = TownTiles.build(def)
+	ground.tile_set = TownTiles.build(world)
 	for y in map.size.y:
 		for x in map.size.x:
 			var c := Vector2i(x, y)
 			ground.set_cell(c, TownTiles.SOURCE_ID, TownTiles.atlas_of(map.tile_def(c)))
-	add_child(ground)
+	world_root.add_child(ground)
 
 	marker = Node2D.new()
 	marker.draw.connect(_draw_marker)
-	add_child(marker)
+	world_root.add_child(marker)
 
 	sorted = Node2D.new()
 	sorted.y_sort_enabled = true
-	add_child(sorted)
+	world_root.add_child(sorted)
 	var chars: Dictionary = GameData.get_json("characters")
 	for n in def.get("npcs", []):
 		var c: Dictionary = chars.get(n["character"], {})
@@ -90,18 +144,8 @@ func _build_world() -> void:
 		var p: Dictionary = def["props"][i]
 		_add_actor("prop_%d" % i, "prop", TownMap.cell_of(p["cell"]), p.get("sprite", ""), p.get("color", "#888888"), p.get("shape", ""))
 
-	var pd: Dictionary = def["player"]
-	var pc: Dictionary = chars.get(pd["character"], {})
-	player_cell = TownMap.cell_of(pd["cell"])
-	var facing: String = pd.get("facing", "down")
-	if not session.town_spot.is_empty():
-		player_cell = session.town_spot["cell"]
-		facing = session.town_spot["facing"]
+	var pc: Dictionary = chars.get(world["player"]["character"], {})
 	player = _add_actor("player", "character", player_cell, pc.get("sprite", ""), pc.get("color", "#ffffff"), "", facing)
-
-	camera = Camera2D.new()
-	add_child(camera)
-	camera.make_current()
 
 
 func _add_actor(id: String, kind: String, cell: Vector2i, sprite: String, color: String, shape: String, facing: String = "down"):
@@ -131,11 +175,24 @@ func _build_ui() -> void:
 	menu_btn = Button.new()
 	menu_btn.text = "Menu"
 	menu_btn.focus_mode = Control.FOCUS_NONE
-	menu_btn.pressed.connect(func(): menu_requested.emit())
+	menu_btn.pressed.connect(_on_menu)
 	root.add_child(menu_btn)
 	dialogue_box = DialogueScene.instantiate()
 	root.add_child(dialogue_box)
 	dialogue_box.closed.connect(_on_dialogue_closed)
+	# Map-change fade: drawn over everything, never takes input itself.
+	fade = ColorRect.new()
+	fade.color = Color(0.03, 0.02, 0.04, 0.0)
+	fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(fade)
+
+
+func _on_menu() -> void:
+	if transitioning:
+		return
+	session.set_spot(map_id, player_cell, player.facing)
+	menu_requested.emit()
 
 
 func relayout() -> void:
@@ -148,7 +205,7 @@ func relayout() -> void:
 	# Each art pixel covers a whole number of device pixels, so pixel art
 	# stays crisp at any screen density.
 	var dev: float = _metrics["css_per_unit"] * _metrics["dpr"]
-	zoom = maxf(1.0, roundf(float(def.get("zoom", 2.5)) * dev)) / dev
+	zoom = maxf(1.0, roundf(float(def.get("zoom", world.get("zoom", 2.5))) * dev)) / dev
 	camera.zoom = Vector2(zoom, zoom)
 
 
@@ -165,24 +222,13 @@ func cell_at_world(p: Vector2) -> Vector2i:
 	return Vector2i(floori(p.x / ts), floori(p.y / ts))
 
 
-## Interactive NPC/object shown at a tapped cell. Sprites stand up to about
-## one tile above their own, so a tap on the blocked tile just above one
-## (a wall behind the innkeeper, say) also counts.
+## What a tap on a cell means (an exit or interactive NPC/object id, or "").
 func target_at(c: Vector2i) -> String:
-	var id: String = map.thing_at(c)
-	if id != "" and _interaction_of(id) != "":
-		return id
-	var below: String = map.thing_at(c + Vector2i(0, 1))
-	if below != "" and _interaction_of(below) != "" and not map.is_walkable(c):
-		return below
-	return ""
+	return map.target_at(c)
 
 
 func _interaction_of(id: String) -> String:
-	for t in def.get("npcs", []) + def.get("objects", []):
-		if t["id"] == id:
-			return str(t.get("interaction", ""))
-	return ""
+	return str(map.targets.get(id, {}).get("interaction", ""))
 
 
 # =========================================================================
@@ -205,12 +251,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## One tap on a cell: walk there, or walk next to a target and interact.
 func tap_cell(c: Vector2i) -> void:
-	if dialogue_box.is_open():
+	if dialogue_box.is_open() or transitioning:
 		return
 	var id := target_at(c)
 	if id != "":
-		var tc: Vector2i = map.cell_of_thing(id)
-		var a: Dictionary = map.approach(player_cell, tc)
+		var a: Dictionary = map.approach_target(player_cell, id)
 		if a.is_empty():
 			return
 		target_id = id
@@ -230,7 +275,7 @@ func _set_path(p: Array, goal: Vector2i) -> void:
 
 
 func is_idle() -> bool:
-	return path.is_empty() and _step_t <= 0.0
+	return path.is_empty() and _step_t <= 0.0 and not transitioning
 
 
 func _process(delta: float) -> void:
@@ -267,13 +312,41 @@ func _arrive() -> void:
 		return
 	var id := target_id
 	target_id = ""
-	var tc: Vector2i = map.cell_of_thing(id)
-	if (tc - player_cell).length_squared() != 1:
+	if not map.can_use_from(id, player_cell):
 		return
-	player.facing = TownMap.facing_toward(player_cell, tc)
+	player.facing = map.facing_to_target(player_cell, id)
+	if map.targets[id]["kind"] == "exit":
+		go_through(id)
+		return
+	var tc: Vector2i = map.cell_of_thing(id)
 	if actors.has(id) and actors[id].kind == "character":
 		actors[id].facing = TownMap.facing_toward(tc, player_cell)
 	interact(id)
+
+
+## Leaves through an exit: fade out, show its target map with the player at
+## its arrival cell and facing (all from data), fade in. Flags are untouched.
+func go_through(exit_id: String) -> void:
+	var exit: Dictionary = map.exit_def(exit_id)
+	if exit.is_empty() or transitioning:
+		return
+	var to := TownMap.arrival(exit)
+	if TownMap.map_def(to["map"]).is_empty():
+		push_warning("Exit '%s' leads to missing map '%s'." % [exit_id, to["map"]])
+		return
+	transitioning = true
+	if fade_time > 0.0:
+		var out := create_tween()
+		out.tween_property(fade, "color:a", 1.0, fade_time * 0.5)
+		await out.finished
+	session.go_through(exit)
+	load_map(to["map"], to["cell"], to["facing"])
+	if fade_time > 0.0:
+		var back := create_tween()
+		back.tween_property(fade, "color:a", 0.0, fade_time * 0.5)
+		await back.finished
+	fade.color.a = 0.0
+	transitioning = false
 
 
 ## Starts an interaction by its data id (from the NPC/object definition).
@@ -281,7 +354,7 @@ func interact(id: String) -> void:
 	var interaction := _interaction_of(id)
 	if interaction == "" or not dialogue.start(interaction):
 		return
-	dialogue_box.open(dialogue, float(def.get("text_speed", 45)))
+	dialogue_box.open(dialogue, float(world.get("text_speed", 45)))
 
 
 func _on_dialogue_closed() -> void:
