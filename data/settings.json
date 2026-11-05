@@ -1,0 +1,4 @@
+{
+  "_comment": "Developer switches. debug_tile_text: show raw tile text such as 'Tile 5,6: floor' (coordinates, plain floor) in the fight's info panel. Off for players.",
+  "debug_tile_text": false
+}

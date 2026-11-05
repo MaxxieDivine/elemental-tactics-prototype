@@ -18,6 +18,11 @@ static func get_json(file_name: String) -> Variant:
 	return _cache[file_name]
 
 
+## A value from data/settings.json (developer switches), or `fallback`.
+static func setting(key: String, fallback: Variant = null) -> Variant:
+	return get_json("settings").get(key, fallback)
+
+
 static func ability(id: String) -> Dictionary:
 	return get_json("abilities")[id]
 

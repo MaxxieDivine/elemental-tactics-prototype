@@ -469,18 +469,28 @@ func _describe_intent(e) -> String:
 
 
 func _describe_tile(c: Vector2i) -> String:
+	return describe_tile(state, c, bool(GameData.setting("debug_tile_text", false)))
+
+
+## Details for a tapped tile. Players see only what matters (terrain, surface,
+## unit); raw text such as "Tile 5,6: floor" needs the debug_tile_text setting.
+static func describe_tile(st, c: Vector2i, debug: bool) -> String:
 	var bits: Array = []
-	match state.get_terrain(c):
+	match st.get_terrain(c):
 		BattleState.Terrain.WALL: bits.append("Wall: blocks movement and sight")
 		BattleState.Terrain.BARREL: bits.append("Explosive barrel: any hit, fire or lightning sets off a 3x3 blast")
-	match state.get_surface(c):
+	match st.get_surface(c):
 		BattleState.Surface.WATER: bits.append("Water: conducts lightning, fire turns it to steam")
 		BattleState.Surface.OIL: bits.append("Oil: fire ignites the whole patch")
-		BattleState.Surface.STEAM: bits.append("Steam: blocks sight, fades in %d" % state.steam_timer[state.idx(c)])
-	var u = state.unit_at(c)
+		BattleState.Surface.STEAM: bits.append("Steam: blocks sight, fades in %d" % st.steam_timer[st.idx(c)])
+	var u = st.unit_at(c)
 	if u != null:
 		bits.append("%s %d/%d hp%s" % [u.name, u.hp, u.max_hp, ", burning" if u.burning > 0 else ""])
-	return "[color=#aab]Tile %d,%d: %s[/color]" % [c.x, c.y, "; ".join(bits) if not bits.is_empty() else "floor"]
+	if debug:
+		return "[color=#aab]Tile %d,%d: %s[/color]" % [c.x, c.y, "; ".join(bits) if not bits.is_empty() else "floor"]
+	if bits.is_empty():
+		return ""
+	return "[color=#aab]%s[/color]" % "; ".join(bits)
 
 
 func _turn_order() -> String:
@@ -513,6 +523,12 @@ func _update_buttons(u) -> void:
 		b.disabled = not h.alive or not can
 		b.add_theme_color_override("font_color", Color(GameData.hero(h.type_id)["color"]))
 		b.add_theme_color_override("font_pressed_color", Color.WHITE)
+	var sel_slot := -1
+	for i in heroes.size():
+		if heroes[i].id == selected_id:
+			sel_slot = i
+	hud.show_ability_owner(u.name if u != null else "", Color(GameData.hero(u.type_id)["color"]) if u != null else Color.GRAY,
+		sel_slot, heroes.map(func(h): return Color(GameData.hero(h.type_id)["color"])))
 	for i in 3:
 		var b: Button = hud.ability_btns[i]
 		if u == null:
