@@ -6,13 +6,15 @@ A small Godot 4 prototype of one turn-based tactics fight. It exists to answer a
 
 You have three heroes, one each for water, lightning and fire, on a 10x10 grid. You fight five enemies that show their plans before they act. You set up combos: soak tiles and then electrify them, ignite oil next to an explosive barrel, or boil water into steam to block a sniper's sight. Then you watch the chain play out one step at a time.
 
-In front of that fight is a small **walkable world**. You play Agador: start on the dock, read a banner and your letter, find a locked cellar hatch humming against the inn wall, then go inside the inn. The lobby has the innkeeper, a guest book and a key board; the lounge has a fireplace and an arcade cabinet that has no business being there; upstairs, Room 1 is open and Rooms 2 to 4 are locked. Your letter changes what the innkeeper and the guest book say. The arcade's **Insert coin** starts the fight, and you come back beside the cabinet afterwards (win or lose). After a win the arcade shows a high score you never entered, and you can play again.
+In front of that fight is a small **walkable world**. You play Agador: start on the dock, read a banner and your letter, find a locked cellar hatch humming against the inn wall, then go inside the inn. The lobby has the innkeeper, a guest book and a key board; the lounge has a fireplace and an arcade cabinet that has no business being there; upstairs, Room 1 is open and Rooms 2 to 4 are locked. Your letter changes what the innkeeper and the guest book say. The arcade's **Insert coin** starts the fight, and you come back beside the cabinet afterwards (win or lose). After a win the arcade shows a high score you never entered, and you can play again. Once you pick up the Room 1 key and come back downstairs, a distressed stranger, **???**, is pacing in front of the desk arguing with the innkeeper. Talk to them: a missing sister, a letter that should not be that old. Afterwards ??? waits by the arcade in the lounge, and the innkeeper, the guest book and the Room 2 door all have something new to say.
 
 Everything is drawn with simple placeholder shapes and generated tiles. There's no final art, audio, saves or progression.
 
 ## Play it
 
 **In a browser (desktop or phone):** https://maxxiedivine.github.io/elemental-tactics-prototype/
+
+**From a terminal:** `tools/setup_godot.sh` installs the Godot version CI uses when it is missing, then `godot --headless --path . --script res://tests/run_tests.gd` runs every test.
 
 **In Godot:** install [Godot 4.3+](https://godotengine.org/download) (standard build, no .NET needed). In the Project Manager, choose **Import**, select `project.godot`, and press **F5**.
 
@@ -28,7 +30,7 @@ The start screen has two buttons: **Town** (the walkable slice) and **Fight** (t
 | Tap anywhere during dialogue | First tap shows the whole line, next tap goes on (or use the **Next** button) |
 | **Menu** | Back to the start screen (story flags are kept until you reload) |
 
-Try: read the banner, tap the hatch beside the inn, go in and talk to the innkeeper, check the guest book and key board, then go left into the lounge and tap the arcade. Win or lose, you come back next to the arcade. Go upstairs and try the doors. Then go back out, read the letter on the dock, and talk to the innkeeper and the guest book again.
+Try: read the banner, tap the hatch beside the inn, go in and talk to the innkeeper, check the guest book and key board, then go left into the lounge and tap the arcade. Win or lose, you come back next to the arcade. Go upstairs and try the doors. Then go back out, read the letter on the dock, and talk to the innkeeper and the guest book again. Take the key in Room 1, go back down to the lobby and tap ???. Then visit the lounge, the innkeeper, the guest book and the Room 2 door.
 
 Menu remembers where you were: tapping Town again puts you back there. Story flags last until you reload the page.
 
@@ -70,6 +72,7 @@ Each hero can **move once and act once per turn, in either order**. On desktop t
 - **Dialogue:** `data/dialogue.json`. Each interaction id (`innkeeper`, `guest_book`, `arcade`, `room_4_door`, ...) has a list of entries; the first one whose `requires` flags are all set (and `unless` flags unset) plays. An entry can `set_flags` and `start_fight` (an encounter id) with `win_flags`. A line can set `"button"` to label its action button (the arcade uses `"Insert coin"`); `_buttons` holds the defaults (`Next`, `Close`, `Skip`).
 - **Names and colours:** `data/characters.json` for town speakers (Agador's id is `agador`; change `name` to rename him). `data/heroes.json` `name` for Tide, Volt and Ember.
 - **Maps:** one file per map in `data/maps/` (`town`, `lobby`, `lounge`, `hallway`, `room_1`). Each has `map` rows using the shared tile legend in `data/town.json`, plus `npcs`, `objects` (with an `interaction` id), `props`, and `exits`. An NPC or object can list `stand` cells to say where the player uses it from (the hatch is used from the side, the innkeeper across the desk). An optional `zoom` overrides the world zoom for one map.
+- **Who is where (world state):** any NPC or object in a map file can list `states`, e.g. `{"requires": ["met_new_guest"], "priority": 10, "hidden": true}`. Of the states whose flags match, the highest `priority` wins (ties: the one listed first) and its keys replace the base ones: `cell`, `facing`, `hidden`, `interaction`, `sprite`, `shape`, `stand`, `pace` (a route `[[x, y], ...]` walked back and forth) and `mood` (`"upset"` shows a mark above the head). The second guest is in `lobby.json` (pacing route) and `lounge.json` (spot by the arcade); Room 2's door swaps its card in `hallway.json`. Pacing speed is `pace_step_time` / `pace_wait` in `data/town.json`.
 - **Exits:** `{"id", "cell" or "cells", "to": map id, "arrive": [x, y], "facing"}`. Exits sit on a door, doorway or stairs tile. To add a room, make a new `data/maps/<id>.json` and point an exit at it (with one back).
 - **World settings:** `data/town.json`: where a new story starts (`player`: character, map, cell, facing), the tile legend (`atlas` cell, placeholder `color` and `pattern`), `zoom`, walking `step_time`, dialogue `text_speed` (characters per second) and the map-change `fade_time`.
 - **Art:** `data/assets.json` maps keys (`agador.portrait.neutral`, `town.tiles`, `inn.arcade`, ...) to files. Drop a PNG in `art/` and point its key at it. See `art/README.md` for formats. Missing files show a placeholder and log a warning.
