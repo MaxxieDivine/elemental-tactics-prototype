@@ -1,8 +1,15 @@
 {
-  "_comment": "Interaction id -> entries. The first entry whose 'requires' flags are all set (and whose 'unless' flags are all unset) plays. Optional on finish: 'set_flags', 'start_fight' (encounter id) with 'win_flags'. A line may set 'portrait' to another asset key, and 'button' to the label of its action button (else the _buttons defaults: 'next' on a middle line, 'close' on the last, 'skip' while typing).",
+  "_comment": "Interaction id -> entries. Entries are checked top to bottom: the first entry whose 'requires' flags are all set (and whose 'unless' flags are all unset) plays. Optional on finish: 'set_flags', 'start_fight' (encounter id) with 'win_flags'. A line may set 'portrait' to another asset key, and 'button' to the label of its action button (else the _buttons defaults: 'next' on a middle line, 'close' on the last, 'skip' while typing).",
   "_buttons": { "next": "Next", "close": "Close", "skip": "Skip" },
 
   "innkeeper": [
+    {
+      "requires": ["met_new_guest"],
+      "lines": [
+        { "speaker": "agador",    "text": "What happened to her sister?" },
+        { "speaker": "innkeeper", "text": "Have you tried the fireplace? It's lovely this time of year." }
+      ]
+    },
     {
       "requires": ["read_letter"],
       "lines": [
@@ -48,6 +55,12 @@
   ],
 
   "guest_book": [
+    {
+      "requires": ["met_new_guest"],
+      "lines": [
+        { "speaker": "agador", "text": "There's a page torn out. About eleven years back." }
+      ]
+    },
     {
       "requires": ["read_letter"],
       "lines": [
@@ -103,7 +116,8 @@
     {
       "lines": [
         { "speaker": "agador", "text": "A key to a room I never booked." }
-      ]
+      ],
+      "set_flags": ["found_room_key"]
     }
   ],
 
@@ -117,9 +131,38 @@
 
   "room_2_door": [
     {
+      "requires": ["met_new_guest"],
+      "lines": [
+        { "speaker": "agador", "text": "The Reserved card is gone. There's a name here now, but the ink's too wet to read." }
+      ]
+    },
+    {
       "lines": [
         { "speaker": "agador", "text": "Locked. The card says Reserved, but not for whom." }
       ]
+    }
+  ],
+
+  "new_guest": [
+    {
+      "requires": ["met_new_guest"],
+      "lines": [
+        { "speaker": "new_guest", "text": "She loved these things." }
+      ]
+    },
+    {
+      "lines": [
+        { "speaker": "new_guest", "text": "She came here. Someone must've seen her." },
+        { "speaker": "innkeeper", "text": "The ferry will be back any day now." },
+        { "speaker": "new_guest", "text": "Why does everyone keep saying that?" },
+        { "speaker": "agador",    "text": "Are you okay?" },
+        { "speaker": "new_guest", "text": "Did you get a letter too?" },
+        { "speaker": "agador",    "text": "On Tuesday. Same as yours?" },
+        { "speaker": "new_guest", "text": "Mine came Tuesday too. So how is it this old?" },
+        { "speaker": "new_guest", "text": "My sister got one just like it. That was eleven years ago." },
+        { "speaker": "innkeeper", "text": "And such a lovely Tuesday it was." }
+      ],
+      "set_flags": ["met_new_guest"]
     }
   ],
 

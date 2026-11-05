@@ -11,7 +11,10 @@
   "npcs": [],
 
   "objects": [
-    { "id": "room_2_door", "name": "Room 2", "sprite": "inn.door_reserved", "shape": "door_reserved", "color": "#f4efe1", "cell": [5, 1],  "interaction": "room_2_door" },
+    { "id": "room_2_door", "name": "Room 2", "sprite": "inn.door_reserved", "shape": "door_reserved", "color": "#f4efe1", "cell": [5, 1],  "interaction": "room_2_door",
+      "states": [
+        { "requires": ["met_new_guest"], "sprite": "inn.door_name", "shape": "door_name" }
+      ] },
     { "id": "room_3_door", "name": "Room 3", "sprite": "inn.door_reserved", "shape": "door_reserved", "color": "#f4efe1", "cell": [8, 1],  "interaction": "room_3_door" },
     { "id": "room_4_door", "name": "Room 4", "sprite": "inn.door_light",    "shape": "door_light",    "color": "#ffd76a", "cell": [11, 1], "interaction": "room_4_door" }
   ],

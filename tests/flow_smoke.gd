@@ -2,7 +2,8 @@
 ## would on a phone: Town -> into the inn -> lobby, lounge, hallway, Room 1
 ## -> arcade fight (loss, win, replay) -> back beside the arcade, plus the
 ## letter changing the innkeeper and the guest book, the locked hatch and
-## doors, and the direct Fight option. Run by run_tests.gd.
+## doors, the Room 1 key bringing the new guest into the lobby, their scene,
+## the inn changing afterwards, and the direct Fight option. Run by run_tests.gd.
 extends "res://tests/test_base.gd"
 
 const GameSession = preload("res://scripts/core/game_session.gd")
@@ -118,6 +119,85 @@ func arcade_to_fight(entry: int, label: String) -> Variant:
 	return fight
 
 
+## Back in the lobby after the Room 1 key: ??? paces in front of the desk,
+## upset, and never steps onto the player or the player's path.
+func check_guest_pacing() -> void:
+	eq(town().map_id, "lobby", "in the lobby")
+	check(town().actors.has("new_guest"), "??? appears in the lobby after the Room 1 key")
+	if not town().actors.has("new_guest"):
+		return
+	check(town().actors["new_guest"].shows_mood(), "??? shows the upset mark")
+	check(town().actors["new_guest"].is_processing(), "the upset mark animates")
+	check(town().pacing.has("new_guest"), "??? is pacing")
+	var pacer = town().map.pacers["new_guest"]
+	town().pacing["new_guest"]["dur"] = 0.01  # fast pacing for the test
+	town().pacing["new_guest"]["wait"] = 0.01
+	var seen := {pacer.cell: true}
+	var guard := 0
+	while seen.size() < pacer.route.size() and guard < 600:
+		await frames(1)
+		seen[pacer.cell] = true
+		check(pacer.cell != town().player_cell, "??? never steps onto Agador")
+		guard += 1
+	eq(seen.size(), pacer.route.size(), "??? paces the whole data route")
+	var lobby_def: Dictionary = TownMap.map_def("lobby")["npcs"].filter(func(n): return n["id"] == "new_guest")[0]
+	var route: Array = lobby_def["states"].filter(func(s): return s.has("pace"))[0]["pace"]
+	check(seen.has(TownMap.cell_of(route[0])) and seen.has(TownMap.cell_of(route[-1])), "route between the data points")
+
+
+## Taps ??? in the lobby and plays the whole conversation like a player.
+func guest_scene() -> void:
+	eq(town().map_id, "lobby", "the scene is in the lobby")
+	var guest = town().actors["new_guest"]
+	await use("new_guest")
+	var box = town().dialogue_box
+	check(box.is_open(), "tapping ??? starts the conversation")
+	check(town().map.can_use_from("new_guest", town().player_cell), "Agador stands next to ???")
+	var held: Vector2i = town().map.cell_of_thing("new_guest")
+	var held_pos: Vector2 = guest.position
+	var speakers: Array = []
+	var names: Array = []
+	var texts: Array = []
+	var guard := 0
+	while box.is_open() and guard < 30:
+		guard += 1
+		speakers.append(box.runner.line()["speaker"])
+		names.append(box.name_label.text)
+		texts.append(box.text.text)
+		if guard == 1:
+			eq(box.portrait_initial.text, "???", "??? placeholder portrait shows ???")
+			check(box.portrait_box.visible and not box.portrait_tex.visible, "placeholder portrait while there is no art")
+			eq(box.portrait_box.color, Color(GameData.get_json("characters")["new_guest"]["color"]), "placeholder in ???'s colour")
+			box.tap()  # finish typing for the screenshot
+			await shot("town_10b_guest_talk")
+			box.tap()
+			continue
+		await frames(5)
+		eq(town().map.cell_of_thing("new_guest"), held, "??? stops pacing during the conversation")
+		check(not app.session.flags.has("met_new_guest") or not box.is_open(), "met_new_guest is only set at the end")
+		box.tap()
+		box.tap()
+	var entry: Dictionary = GameData.get_json("dialogue")["new_guest"][1]
+	eq(texts, entry["lines"].map(func(l): return l["text"]), "the full lobby conversation, from data")
+	eq(speakers, entry["lines"].map(func(l): return l["speaker"]), "three speakers take turns")
+	eq(names[0], GameData.get_json("characters")["new_guest"]["name"], "??? display name from data")
+	check(guest.position.distance_to(held_pos) < 16.0, "??? stayed put while talking")
+	check(app.session.flags.has("met_new_guest"), "the conversation sets met_new_guest")
+	# The inn changes behind a short fade.
+	var peak := 0.0
+	guard = 0
+	while (town().transitioning or guard == 0) and guard < 600:
+		await frames(1)
+		peak = maxf(peak, town().fade.color.a)
+		guard += 1
+	check(peak > 0.9, "the screen fades as ??? leaves")
+	eq(town().fade.color.a, 0.0, "fade cleared after the scene")
+	check(not town().actors.has("new_guest") and not town().map.targets.has("new_guest"), "??? has left the lobby")
+	check(town().actors.has("innkeeper"), "the innkeeper stays in the lobby")
+	eq(app.session.spot()["map"], "lobby", "Agador is still in the lobby")
+	await shot("town_11_after_scene")
+
+
 func finish_fight(fight, won: bool) -> void:
 	if won:
 		for e in fight.state.living("enemy"):
@@ -198,10 +278,11 @@ func run(t: SceneTree, shots: String) -> void:
 	# --- Into the inn ----------------------------------------------------------------
 	await go("inn_front_door")
 	eq(town().map_id, "lobby", "the inn door leads into the lobby")
+	check(not town().actors.has("new_guest") and not town().map.targets.has("new_guest"), "??? is not in the lobby before the Room 1 key")
 	await shot("town_04_lobby")
-	await talk("innkeeper", "innkeeper", 1, "innkeeper default")
+	await talk("innkeeper", "innkeeper", 2, "innkeeper default")
 	eq(town().actors["innkeeper"].facing, TownMap.facing_toward(town().map.cell_of_thing("innkeeper"), town().player_cell), "innkeeper turns to face the player")
-	await talk("guest_book", "guest_book", 1, "guest book before the letter")
+	await talk("guest_book", "guest_book", 2, "guest book before the letter")
 	await talk("key_board", "key_board", 0, "key board")
 
 	# --- Lounge: fireplace and the arcade ---------------------------------------------
@@ -246,7 +327,7 @@ func run(t: SceneTree, shots: String) -> void:
 	await go("lobby_doorway")
 	await go("stairs_up")
 	await shot("town_08_hallway")
-	await talk("room_2_door", "room_2_door", 0, "room 2")
+	await talk("room_2_door", "room_2_door", 1, "room 2")
 	await talk("room_3_door", "room_3_door", 0, "room 3")
 	await talk("room_4_door", "room_4_door", 0, "room 4")
 	eq(town().map_id, "hallway", "locked doors keep you in the hallway")
@@ -254,8 +335,11 @@ func run(t: SceneTree, shots: String) -> void:
 	await talk("room_1_key", "room_1_key", 0, "room 1 key")
 	await talk("room_1_bed", "room_1_bed", 0, "room 1 bed")
 	await shot("town_09_room_1")
+	check(app.session.flags.has("found_room_key"), "the Room 1 key sets found_room_key")
 	await go("room_1_exit")
 	await go("stairs_down")
+	await check_guest_pacing()
+	await shot("town_10_new_guest")
 	await go("lobby_front_door")
 	eq(town().map_id, "town", "back outside")
 
@@ -263,8 +347,36 @@ func run(t: SceneTree, shots: String) -> void:
 	await talk("letter", "letter", 0, "letter")
 	check(app.session.flags.has("read_letter"), "reading the letter sets read_letter")
 	await go("inn_front_door")
-	await talk("innkeeper", "innkeeper", 0, "innkeeper after the letter")
-	await talk("guest_book", "guest_book", 0, "guest book after the letter")
+	await talk("innkeeper", "innkeeper", 1, "innkeeper after the letter")
+	await talk("guest_book", "guest_book", 1, "guest book after the letter")
+	check(town().actors.has("new_guest") and not town().pacing.is_empty(), "??? is still pacing after Agador walked around them")
+
+	# --- The second guest's scene ----------------------------------------------------------
+	await guest_scene()
+	await talk("innkeeper", "innkeeper", 0, "innkeeper after the scene")
+	await talk("guest_book", "guest_book", 0, "guest book after the scene")
+	await talk("key_board", "key_board", 0, "key board unchanged after the scene")
+	await go("lounge_doorway")
+	var lounge_def: Dictionary = TownMap.map_def("lounge")["npcs"].filter(func(n): return n["id"] == "new_guest")[0]
+	eq(town().map.cell_of_thing("new_guest"), TownMap.cell_of(lounge_def["cell"]), "??? waits in the lounge at the data cell")
+	check(not town().actors["new_guest"].shows_mood(), "no upset mark in the lounge")
+	check(town().pacing.is_empty() and town().map.pacers.is_empty(), "??? no longer paces")
+	check(not town().map.targets["arcade"]["stand"].has(town().map.cell_of_thing("new_guest")), "??? does not stand where the arcade is used from")
+	await shot("town_12_lounge_guest")
+	await talk("new_guest", "new_guest", 0, "??? at the arcade")
+	await talk("fireplace", "fireplace", 0, "fireplace unchanged after the scene")
+	fight = await arcade_to_fight(0, "arcade after the scene")
+	await finish_fight(fight, true)
+	eq(town().map_id, "lounge", "back in the lounge after the arcade")
+	check(town().actors.has("new_guest"), "??? is still beside the arcade after a fight")
+	await go("lobby_doorway")
+	check(not town().actors.has("new_guest"), "??? is gone from the lobby")
+	await go("stairs_up")
+	eq(town().actors["room_2_door"].shape, "door_name", "Room 2's Reserved card is replaced (world state)")
+	await talk("room_2_door", "room_2_door", 0, "room 2 after the scene")
+	await talk("room_3_door", "room_3_door", 0, "room 3 unchanged after the scene")
+	await talk("room_4_door", "room_4_door", 0, "room 4 unchanged after the scene")
+	await go("stairs_down")
 
 	# --- Menu keeps the place; Town resumes there ---------------------------------------
 	var before: Dictionary = town().current_spot()

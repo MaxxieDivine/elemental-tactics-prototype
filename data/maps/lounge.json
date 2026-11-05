@@ -11,7 +11,16 @@
     "^^^^^^^^^"
   ],
 
-  "npcs": [],
+  "npcs": [
+    {
+      "id": "new_guest", "character": "new_guest", "cell": [2, 3], "facing": "left", "interaction": "new_guest",
+      "hidden": true,
+      "_comment": "After the lobby conversation the new guest waits beside the arcade (not on its stand cells).",
+      "states": [
+        { "requires": ["met_new_guest"], "hidden": false }
+      ]
+    }
+  ],
 
   "objects": [
     { "id": "fireplace", "name": "Fireplace", "sprite": "inn.fireplace", "shape": "fireplace", "color": "#9a8f86", "cell": [4, 1], "interaction": "fireplace" },

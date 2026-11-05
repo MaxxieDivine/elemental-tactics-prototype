@@ -49,7 +49,7 @@ func test_dialogue_advances_line_by_line() -> void:
 	var f = StoryFlags.new()
 	var d = Dialogue.new(f)
 	check(d.start("innkeeper"), "innkeeper dialogue starts")
-	var expected := _data_texts("innkeeper", 1)
+	var expected := _data_texts("innkeeper", 2)
 	var seen: Array = []
 	var speakers: Array = []
 	var guard := 0
@@ -84,9 +84,9 @@ func test_letter_sets_read_letter_only_at_the_end() -> void:
 
 func test_innkeeper_changes_after_read_letter() -> void:
 	var f = StoryFlags.new()
-	eq(_texts("innkeeper", f), _data_texts("innkeeper", 1), "default innkeeper dialogue")
+	eq(_texts("innkeeper", f), _data_texts("innkeeper", 2), "default innkeeper dialogue")
 	f.set_flag("read_letter")
-	eq(_texts("innkeeper", f), _data_texts("innkeeper", 0), "innkeeper dialogue after read_letter")
+	eq(_texts("innkeeper", f), _data_texts("innkeeper", 1), "innkeeper dialogue after read_letter")
 
 
 func _finish(d) -> void:
@@ -116,7 +116,7 @@ func test_guest_book_changes_after_read_letter() -> void:
 	eq(_texts("guest_book", f), ["My name's already in here. I haven't signed anything."], "guest book before the letter")
 	f.set_flag("read_letter")
 	eq(_texts("guest_book", f), ["My name's already in here. I haven't signed anything.", "The ink's wet. Just like my letter."], "guest book after the letter")
-	eq(_texts("guest_book", f), _data_texts("guest_book", 0), "guest book reads data")
+	eq(_texts("guest_book", f), _data_texts("guest_book", 1), "guest book reads data")
 
 
 func test_arcade_dialogue_and_fight_request() -> void:
