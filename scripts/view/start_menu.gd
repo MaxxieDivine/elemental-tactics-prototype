@@ -9,6 +9,7 @@ const ScreenMetrics = preload("res://scripts/view/screen_metrics.gd")
 
 var town_btn: Button
 var fight_btn: Button
+var build_label: Label
 
 
 func _ready() -> void:
@@ -32,6 +33,12 @@ func _ready() -> void:
 	town_btn.pressed.connect(func(): town_pressed.emit())
 	fight_btn = _button(box, "Fight")
 	fight_btn.pressed.connect(func(): fight_pressed.emit())
+	build_label = Label.new()
+	build_label.text = build_text()
+	build_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	build_label.add_theme_font_size_override("font_size", 13)
+	build_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.45))
+	box.add_child(build_label)
 	get_tree().root.size_changed.connect(_on_resize)
 
 
@@ -47,3 +54,15 @@ func _button(parent: Control, text: String) -> Button:
 	b.add_theme_font_size_override("font_size", 20)
 	parent.add_child(b)
 	return b
+
+
+## "Build abc1234 (2026-11-05)" from data/build.json, which tools/build_web.sh
+## writes for each web build; "Dev build" when running from the editor.
+static func build_text() -> String:
+	var p := "res://data/build.json"
+	if not FileAccess.file_exists(p):
+		return "Dev build"
+	var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(p))
+	if not d is Dictionary or str(d.get("build", "")) == "":
+		return "Dev build"
+	return "Build %s (%s)" % [d["build"], d.get("date", "")]

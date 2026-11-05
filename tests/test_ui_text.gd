@@ -96,3 +96,12 @@ func test_tile_debug_text_shown_when_enabled() -> void:
 	settings["debug_tile_text"] = true
 	check(bool(GameData.setting("debug_tile_text", false)), "setting read from data")
 	settings["debug_tile_text"] = false
+
+
+func test_start_screen_build_label() -> void:
+	const StartMenu = preload("res://scripts/view/start_menu.gd")
+	# Tests run from the repo, where the web build's stamp is absent.
+	if not FileAccess.file_exists("res://data/build.json"):
+		eq(StartMenu.build_text(), "Dev build", "no stamp: Dev build")
+	else:
+		check(StartMenu.build_text().begins_with("Build "), "stamped build shows its id")
