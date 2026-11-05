@@ -10,6 +10,10 @@ const ScreenMetrics = preload("res://scripts/view/screen_metrics.gd")
 
 const GAP := 6.0
 const BTN_H := 48.0
+const PANEL_PAD := 6.0
+const PANEL_TITLE_H := 22.0
+## The selected hero's panel: title ("Tide's abilities") above its ability buttons.
+const PANEL_H := PANEL_PAD * 2 + PANEL_TITLE_H + BTN_H
 const FONT := 15
 const SMALL_FONT := 13
 
@@ -23,8 +27,11 @@ var board_input
 var board
 var hero_row: HBoxContainer
 var hero_btns: Array = []
+var ability_panel: Panel  # attached under the selected hero's tab
+var ability_title: Label
 var ability_row: HBoxContainer
 var ability_btns: Array = []
+var _panel_style: StyleBoxFlat
 var action_row: HBoxContainer
 var wait_btn: Button
 var undo_btn: Button
@@ -80,7 +87,23 @@ func _build() -> void:
 		b.toggle_mode = true
 		b.add_theme_font_size_override("font_size", SMALL_FONT + 1)
 		hero_btns.append(b)
-	ability_row = _row()
+	# Abilities live in one panel joined to the selected hero's tab, titled
+	# with that hero's name, so they clearly belong to that hero.
+	ability_panel = Panel.new()
+	ability_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel_style = StyleBoxFlat.new()
+	_panel_style.set_border_width_all(2)
+	_panel_style.set_corner_radius_all(8)
+	ability_panel.add_theme_stylebox_override("panel", _panel_style)
+	root.add_child(ability_panel)
+	ability_title = Label.new()
+	ability_title.add_theme_font_size_override("font_size", SMALL_FONT + 1)
+	ability_title.clip_text = true
+	ability_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	ability_panel.add_child(ability_title)
+	ability_row = HBoxContainer.new()
+	ability_row.add_theme_constant_override("separation", GAP)
+	ability_panel.add_child(ability_row)
 	for i in 3:
 		var b := _button(ability_row, "", true)
 		b.toggle_mode = true
@@ -162,7 +185,7 @@ func relayout() -> void:
 	var ins: Array = metrics["insets"]  # top, right, bottom, left
 	var area := Rect2(ins[3] + GAP, ins[0] + GAP, size.x - ins[1] - ins[3] - GAP * 2, size.y - ins[0] - ins[2] - GAP * 2)
 	portrait = area.size.x < area.size.y * 1.15
-	var rows_h := BTN_H * 4 + GAP * 4
+	var rows_h := BTN_H * 3 + PANEL_H + GAP * 3
 	var bs: float
 	if portrait:
 		# Top bar, board (full width), heroes, abilities, actions, info.
@@ -174,9 +197,9 @@ func relayout() -> void:
 		y += BTN_H + GAP
 		_place(board_input, area.position.x + (area.size.x - bs) * 0.5, y, bs, bs)
 		y += bs + GAP
-		for r in [hero_row, ability_row, action_row]:
-			_place(r, area.position.x, y, area.size.x, BTN_H)
-			y += BTN_H + GAP
+		y = _place_hero_block(area.position.x, y, area.size.x)
+		_place(action_row, area.position.x, y, area.size.x, BTN_H)
+		y += BTN_H + GAP
 		_place(info_text, area.position.x, y, area.size.x, maxf(40.0, area.end.y - y))
 	else:
 		# Board on the left at full height, everything else in a column.
@@ -187,11 +210,53 @@ func relayout() -> void:
 		var px := area.position.x + bs + GAP * 2
 		var pw := area.end.x - px
 		var y := area.position.y
-		for r in [top_row, hero_row, ability_row, action_row]:
-			_place(r, px, y, pw, BTN_H)
-			y += BTN_H + GAP
+		_place(top_row, px, y, pw, BTN_H)
+		y += BTN_H + GAP
+		y = _place_hero_block(px, y, pw)
+		_place(action_row, px, y, pw, BTN_H)
+		y += BTN_H + GAP
 		_place(info_text, px, y, pw, maxf(40.0, area.end.y - y))
 	board_input.cell_size = bs / 10.0
 	board.set_cell_size(bs / 10.0)
 	_place(over_layer, 0, 0, size.x, size.y)
 	_laying_out = false
+
+
+## Hero tabs with the selected hero's ability panel directly below (no gap,
+## so the selected tab and the panel read as one piece). Returns the next y.
+func _place_hero_block(x: float, y: float, w: float) -> float:
+	_place(hero_row, x, y, w, BTN_H)
+	y += BTN_H
+	_place(ability_panel, x, y, w, PANEL_H)
+	_place(ability_title, PANEL_PAD + 4, PANEL_PAD, w - PANEL_PAD * 2 - 8, PANEL_TITLE_H)
+	_place(ability_row, PANEL_PAD, PANEL_PAD + PANEL_TITLE_H, w - PANEL_PAD * 2, BTN_H)
+	return y + PANEL_H + GAP
+
+
+## Colours the hero tabs and the ability panel. `owner` is the selected
+## hero's display name ("" when none); `colors` are the tab heroes' colours.
+func show_ability_owner(owner: String, owner_color: Color, selected_slot: int, colors: Array) -> void:
+	var has := owner != ""
+	var c := owner_color if has else Color(0.45, 0.45, 0.5)
+	_panel_style.bg_color = c.darkened(0.72)
+	_panel_style.border_color = c
+	# The selected tab's corner joins the panel.
+	_panel_style.corner_radius_top_left = 0 if has and selected_slot == 0 else 8
+	_panel_style.corner_radius_top_right = 0 if has and selected_slot == hero_btns.size() - 1 else 8
+	ability_title.text = ("%s's abilities" % owner) if has else "Select a hero to see their abilities"
+	ability_title.add_theme_color_override("font_color", c.lightened(0.3))
+	for i in hero_btns.size():
+		var b: Button = hero_btns[i]
+		var hc: Color = colors[i] if i < colors.size() else Color.GRAY
+		var tab := StyleBoxFlat.new()
+		tab.bg_color = hc.darkened(0.72)
+		tab.border_color = hc
+		tab.set_border_width_all(2)
+		tab.border_width_bottom = 0
+		tab.corner_radius_top_left = 8
+		tab.corner_radius_top_right = 8
+		tab.expand_margin_bottom = 2  # overlap the panel's top border
+		b.add_theme_stylebox_override("pressed", tab)
+		b.add_theme_stylebox_override("hover_pressed", tab)
+	for b in ability_btns:
+		b.add_theme_color_override("font_color", c.lightened(0.45))
