@@ -11,9 +11,23 @@
 
     "town.welcome_banner": "res://art/town/welcome_banner.png",
     "town.letter": "res://art/town/letter.png",
-    "town.cellar_door": "res://art/town/cellar_door.png",
+    "town.cellar_hatch": "res://art/town/cellar_hatch.png",
     "town.tree": "res://art/town/tree.png",
     "town.lamp": "res://art/town/lamp.png",
-    "town.crate": "res://art/town/crate.png"
+    "town.crate": "res://art/town/crate.png",
+
+    "inn.arcade": "res://art/inn/arcade.png",
+    "inn.fireplace": "res://art/inn/fireplace.png",
+    "inn.guest_book": "res://art/inn/guest_book.png",
+    "inn.desk": "res://art/inn/desk.png",
+    "inn.key_board": "res://art/inn/key_board.png",
+    "inn.lantern": "res://art/inn/lantern.png",
+    "inn.flowers": "res://art/inn/flowers.png",
+    "inn.armchair": "res://art/inn/armchair.png",
+    "inn.side_table": "res://art/inn/side_table.png",
+    "inn.bed": "res://art/inn/bed.png",
+    "inn.table_key": "res://art/inn/table_key.png",
+    "inn.door_reserved": "res://art/inn/door_reserved.png",
+    "inn.door_light": "res://art/inn/door_light.png"
   }
 }
