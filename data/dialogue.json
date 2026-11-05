@@ -5,16 +5,16 @@
     {
       "requires": ["read_letter"],
       "lines": [
-        { "speaker": "believer",  "text": "Who sent my letter?" },
+        { "speaker": "agador",  "text": "Who sent my letter?" },
         { "speaker": "innkeeper", "text": "The ferry will be back any day now." },
-        { "speaker": "believer",  "text": "That isn't what I asked." },
+        { "speaker": "agador",  "text": "That isn't what I asked." },
         { "speaker": "innkeeper", "text": "Any day now." }
       ]
     },
     {
       "lines": [
         { "speaker": "innkeeper", "text": "Welcome, welcome! We've all been so excited to meet you." },
-        { "speaker": "believer",  "text": "All of you? I only got the letter on Tuesday." },
+        { "speaker": "agador",  "text": "All of you? I only got the letter on Tuesday." },
         { "speaker": "innkeeper", "text": "And such a lovely Tuesday it was." }
       ]
     }
@@ -23,7 +23,7 @@
   "welcome_banner": [
     {
       "lines": [
-        { "speaker": "believer", "text": "'Welcome, Heros.' Well, it's the thought that counts." }
+        { "speaker": "agador", "text": "'Welcome, Heros.' Well, it's the thought that counts." }
       ]
     }
   ],
@@ -31,8 +31,8 @@
   "letter": [
     {
       "lines": [
-        { "speaker": "believer", "text": "My letter. Same as the day it came." },
-        { "speaker": "believer", "text": "That's strange. The ink is still wet." }
+        { "speaker": "agador", "text": "My letter. Same as the day it came." },
+        { "speaker": "agador", "text": "That's strange. The ink is still wet." }
       ],
       "set_flags": ["read_letter"]
     }
@@ -42,12 +42,12 @@
     {
       "requires": ["won_first_fight"],
       "lines": [
-        { "speaker": "believer", "text": "It's quiet now. Somehow, that's worse." }
+        { "speaker": "agador", "text": "It's quiet now. Somehow, that's worse." }
       ]
     },
     {
       "lines": [
-        { "speaker": "believer", "text": "There's a door under the inn. Why is it humming?" }
+        { "speaker": "agador", "text": "There's a door under the inn. Why is it humming?" }
       ],
       "start_fight": "first_fight",
       "win_flags": ["won_first_fight"]

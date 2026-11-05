@@ -4,8 +4,8 @@
   "paths": {
     "town.tiles": "res://art/town/tiles.png",
 
-    "believer.sprite": "res://art/town/believer.png",
-    "believer.portrait.neutral": "res://art/portraits/believer_neutral.png",
+    "agador.sprite": "res://art/town/agador.png",
+    "agador.portrait.neutral": "res://art/portraits/agador_neutral.png",
     "innkeeper.sprite": "res://art/town/innkeeper.png",
     "innkeeper.portrait.neutral": "res://art/portraits/innkeeper_neutral.png",
 

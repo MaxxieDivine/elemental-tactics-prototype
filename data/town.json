@@ -40,7 +40,7 @@
     "~~~~~~~~~~~~~~~~"
   ],
 
-  "player": { "character": "believer", "cell": [6, 15], "facing": "up" },
+  "player": { "character": "agador", "cell": [6, 15], "facing": "up" },
 
   "npcs": [
     { "id": "innkeeper", "character": "innkeeper", "cell": [5, 4], "facing": "down", "interaction": "innkeeper" }

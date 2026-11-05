@@ -67,7 +67,7 @@ Each hero can **move once and act once per turn, in either order**. On desktop t
 - **Dialogue:** `data/dialogue.json`. Each interaction id (`innkeeper`, `welcome_banner`, `letter`, `cellar_door`) has a list of entries; the first one whose `requires` flags are all set (and `unless` flags unset) plays. An entry can `set_flags` and `start_fight` (an encounter id) with `win_flags`.
 - **Names and colours:** `data/characters.json` for town speakers; `data/heroes.json` `name` for Tide, Volt and Ember.
 - **Town map:** `data/town.json`: the map rows and tile legend, player start, NPC/object/prop placements, `zoom`, walking `step_time` and dialogue `text_speed` (characters per second).
-- **Art:** `data/assets.json` maps keys (`believer.portrait.neutral`, `town.tiles`, ...) to files. Drop a PNG in `art/` and point its key at it. See `art/README.md` for formats. Missing files show a placeholder and log a warning.
+- **Art:** `data/assets.json` maps keys (`agador.portrait.neutral`, `town.tiles`, ...) to files. Drop a PNG in `art/` and point its key at it. See `art/README.md` for formats. Missing files show a placeholder and log a warning.
 
 ### Fight
 

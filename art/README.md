@@ -12,7 +12,7 @@ it in `data/assets.json`. No code changes.
 | Key | What | Format |
 |---|---|---|
 | `town.tiles` | Town tileset | 16x16 tiles, no spacing (e.g. Kenney Tiny Town `tilemap_packed.png`). Set each tile's `atlas` cell in `data/town.json`. |
-| `believer.sprite`, `innkeeper.sprite` | Town characters | One row of 4 equal frames: down, left, right, up. Feet at the bottom centre. |
-| `believer.portrait.neutral`, `innkeeper.portrait.neutral` | Dialogue portraits | Any square-ish image (shown at 76x76, nearest filtering). |
+| `agador.sprite`, `innkeeper.sprite` | Town characters | One row of 4 equal frames: down, left, right, up. Feet at the bottom centre. |
+| `agador.portrait.neutral`, `innkeeper.portrait.neutral` | Dialogue portraits | Any square-ish image (shown at 76x76, nearest filtering). |
 | `town.welcome_banner`, `town.letter`, `town.cellar_door`, `town.tree`, `town.lamp`, `town.crate` | Town objects/props | One image, drawn standing on its tile (bottom centre). |
 | `hero_*`, `enemy_*`, `tile_*`, `surface_*` | Fight (optional) | Drawn inside a fight tile. |
