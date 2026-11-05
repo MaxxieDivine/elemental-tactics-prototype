@@ -1,10 +1,12 @@
 {
-  "_comment": "The walkable world. Maps live in data/maps/<id>.json and share this tile legend. 'atlas' is a tile's cell in the town.tiles texture (16x16 tiles); when that texture is missing, placeholder tiles are generated in those cells from 'color' and 'pattern'. 'player' is where a new story starts. fade_time is the map-change fade in seconds.",
+  "_comment": "The walkable world. Maps live in data/maps/<id>.json and share this tile legend. 'atlas' is a tile's cell in the town.tiles texture (16x16 tiles); when that texture is missing, placeholder tiles are generated in those cells from 'color' and 'pattern'. 'player' is where a new story starts. fade_time is the map-change fade in seconds (also used when a conversation changes who is where). pace_step_time / pace_wait: seconds per step and the pause at each point for pacing NPCs (an NPC can override them with its own keys).",
   "tile_size": 16,
   "zoom": 2.5,
   "step_time": 0.16,
   "text_speed": 45,
   "fade_time": 0.35,
+  "pace_step_time": 0.45,
+  "pace_wait": 1.2,
 
   "player": { "character": "agador", "map": "town", "cell": [6, 15], "facing": "up" },
 

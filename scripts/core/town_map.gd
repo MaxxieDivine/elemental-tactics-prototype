@@ -4,15 +4,22 @@
 ## 4-way paths, and where to stand to use something.
 ##
 ## Map files live in data/maps/<id>.json. The shared tile legend, tile size
-## and start position live in data/town.json.
+## and start position live in data/town.json. NPCs and objects can appear,
+## disappear, move or change with story flags through their "states" (see
+## WorldState); a map is always built for one set of flags.
 extends RefCounted
 
 const GameData = preload("res://scripts/core/game_data.gd")
+const WorldState = preload("res://scripts/core/world_state.gd")
+const Pacer = preload("res://scripts/core/pacer.gd")
 
 const DIRS := [Vector2i(0, 1), Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0)]
 const NO_CELL := Vector2i(-1, -1)
 
 var id: String = ""
+## The map definition as built: world state already applied for the flags
+## (hidden things removed, the winning state's cell/look/pace filled in).
+var def: Dictionary = {}
 var size: Vector2i = Vector2i.ZERO
 var rows: Array = []
 var tiles: Dictionary = {}  # legend char -> tile def
@@ -21,6 +28,7 @@ var things: Dictionary = {}  # cell -> id of the NPC/object/prop standing there 
 ## "cells": [Vector2i], "stand": [Vector2i], "interaction": String, "def": Dictionary}
 var targets: Dictionary = {}
 var exit_cells: Dictionary = {}  # cell -> exit id
+var pacers: Dictionary = {}  # NPC id -> Pacer, for NPCs whose state has "pace"
 
 
 ## The world file: tile legend, tile size, tuning and the start position.
@@ -40,32 +48,41 @@ static func map_def(map_id: String) -> Dictionary:
 	return d
 
 
-## Builds a map by id (see map_def). Null if the map does not exist.
-static func load_map(map_id: String):
+## Builds a map by id (see map_def) as it is for these story flags (null:
+## no flags set). Null if the map does not exist.
+static func load_map(map_id: String, flags = null):
 	var d := map_def(map_id)
 	if d.is_empty():
 		push_warning("Map '%s' does not exist (expected data/maps/%s.json)." % [map_id, map_id])
 		return null
-	return from_data(d)
+	return from_data(d, flags)
 
 
 ## Builds a map from a definition: "map" rows, "tiles" legend, and optional
-## "npcs", "objects", "props" and "exits" lists.
-static func from_data(def: Dictionary):
+## "npcs", "objects", "props" and "exits" lists. NPC/object "states" are
+## resolved for `flags` first (null: no flags set).
+static func from_data(raw: Dictionary, flags = null):
+	var md := WorldState.apply(raw, flags)
 	var m = load("res://scripts/core/town_map.gd").new()
-	m.id = str(def.get("id", ""))
-	m.rows = def["map"]
-	m.tiles = def["tiles"]
+	m.def = md
+	m.id = str(md.get("id", ""))
+	m.rows = md["map"]
+	m.tiles = md["tiles"]
 	m.size = Vector2i(m.rows[0].length(), m.rows.size())
-	for n in def.get("npcs", []):
-		m.things[cell_of(n["cell"])] = n["id"]
-		m._add_target(n, "npc", [cell_of(n["cell"])])
-	for o in def.get("objects", []):
+	for n in md.get("npcs", []):
+		var c := cell_of(n["cell"])
+		if n.get("pace", []).size() > 0:
+			var p = Pacer.new(n["pace"], c)
+			m.pacers[n["id"]] = p
+			c = p.cell  # a pacer starts on its route
+		m.things[c] = n["id"]
+		m._add_target(n, "npc", [c])
+	for o in md.get("objects", []):
 		m.things[cell_of(o["cell"])] = o["id"]
 		m._add_target(o, "object", [cell_of(o["cell"])])
-	for i in def.get("props", []).size():
-		m.things[cell_of(def["props"][i]["cell"])] = "prop_%d" % i
-	for e in def.get("exits", []):
+	for i in md.get("props", []).size():
+		m.things[cell_of(md["props"][i]["cell"])] = "prop_%d" % i
+	for e in md.get("exits", []):
 		var cells := exit_cells_of(e)
 		for c in cells:
 			m.exit_cells[c] = e["id"]
@@ -84,22 +101,55 @@ static func exit_cells_of(e: Dictionary) -> Array:
 	return [cell_of(e["cell"])]
 
 
-func _add_target(def: Dictionary, kind: String, cells: Array) -> void:
-	var stand: Array = []
-	if def.has("stand"):
-		stand = def["stand"].map(func(a): return cell_of(a))
-	else:
-		for c in cells:
-			for d in DIRS:
-				if not cells.has(c + d) and not stand.has(c + d):
-					stand.append(c + d)
-	targets[def["id"]] = {
+func _add_target(d: Dictionary, kind: String, cells: Array) -> void:
+	targets[d["id"]] = {
 		"kind": kind,
 		"cells": cells,
-		"stand": stand,
-		"interaction": str(def.get("interaction", "")),
-		"def": def,
+		"stand": _stand_cells(d, cells),
+		"interaction": str(d.get("interaction", "")),
+		"def": d,
 	}
+
+
+## A target's "stand" cells from data, else every side of its cells.
+static func _stand_cells(d: Dictionary, cells: Array) -> Array:
+	if d.has("stand"):
+		return d["stand"].map(func(a): return cell_of(a))
+	var stand: Array = []
+	for c in cells:
+		for dir in DIRS:
+			if not cells.has(c + dir) and not stand.has(c + dir):
+				stand.append(c + dir)
+	return stand
+
+
+## One pacing step for NPC `thing_id`: moves it to the next cell of its
+## route unless that cell is not walkable or `blocked.call(cell)` is true
+## (then it turns around). Returns true when it moved.
+func step_pacer(thing_id: String, blocked: Callable = func(_c): return false) -> bool:
+	var p = pacers.get(thing_id)
+	if p == null:
+		return false
+	var from: Vector2i = p.cell
+	if not p.step(func(c): return not is_walkable(c) or blocked.call(c)):
+		return false
+	move_thing(thing_id, p.cell)
+	return from != p.cell
+
+
+## Moves an NPC/object to another cell (a pacing NPC's step). Its old cell
+## frees up and the cells to use it from follow it.
+func move_thing(thing_id: String, to: Vector2i) -> void:
+	var from := cell_of_thing(thing_id)
+	if from == to or from == NO_CELL:
+		return
+	if things.get(from, "") == thing_id:
+		things.erase(from)
+	things[to] = thing_id
+	if targets.has(thing_id) and targets[thing_id]["kind"] != "exit":
+		var t: Dictionary = targets[thing_id]
+		t["cells"] = [to]
+		t["stand"] = _stand_cells(t["def"], [to])
 
 
 func in_bounds(c: Vector2i) -> bool:

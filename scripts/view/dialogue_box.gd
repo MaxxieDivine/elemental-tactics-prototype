@@ -15,7 +15,7 @@ const PAD := 10.0
 const BTN := Vector2(96, 52)
 const PORTRAIT := 76.0
 const MAX_W := 720.0
-const BOX_H := 176.0
+const BOX_H := 200.0
 
 var runner  # Dialogue (scripts/core/dialogue.gd)
 var chars_per_sec: float = 45.0
@@ -50,7 +50,8 @@ func _build() -> void:
 	portrait_box = ColorRect.new()
 	portrait_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(portrait_box)
-	# Placeholder portrait: the speaker's initial, large, with the name below.
+	# Placeholder portrait: the speaker's initial (or a short name like
+	# "???" in full), large, with the name below.
 	portrait_initial = Label.new()
 	portrait_initial.set_anchors_preset(Control.PRESET_FULL_RECT)
 	portrait_initial.offset_bottom = -16
@@ -173,7 +174,7 @@ func _show_line() -> void:
 	# Placeholder portrait: the speaker's colour with their name on it.
 	portrait_box.color = Color(l["color"])
 	portrait_label.text = l["name"]
-	portrait_initial.text = l["name"].left(1).to_upper()
+	portrait_initial.text = l["initials"]
 	portrait_box.visible = tex == null
 	_update_button()
 

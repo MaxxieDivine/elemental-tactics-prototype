@@ -13,7 +13,16 @@
   ],
 
   "npcs": [
-    { "id": "innkeeper", "character": "innkeeper", "cell": [3, 2], "facing": "down", "interaction": "innkeeper", "stand": [[3, 4], [2, 4], [4, 4]] }
+    { "id": "innkeeper", "character": "innkeeper", "cell": [3, 2], "facing": "down", "interaction": "innkeeper", "stand": [[3, 4], [2, 4], [4, 4]] },
+    {
+      "id": "new_guest", "character": "new_guest", "cell": [2, 5], "facing": "up", "interaction": "new_guest",
+      "hidden": true,
+      "_comment": "Hidden until Agador finds the Room 1 key; then paces in front of the desk, upset. After the conversation the higher-priority state hides them here (they move to the lounge). 'facing' is where they look while pausing at each pace point.",
+      "states": [
+        { "requires": ["met_new_guest"], "priority": 10, "hidden": true },
+        { "requires": ["found_room_key"], "priority": 0, "hidden": false, "pace": [[2, 5], [5, 5]], "mood": "upset" }
+      ]
+    }
   ],
 
   "objects": [

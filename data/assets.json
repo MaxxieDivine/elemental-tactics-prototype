@@ -8,6 +8,9 @@
     "agador.portrait.neutral": "res://art/portraits/agador_neutral.png",
     "innkeeper.sprite": "res://art/town/innkeeper.png",
     "innkeeper.portrait.neutral": "res://art/portraits/innkeeper_neutral.png",
+    "new_guest.sprite": "res://art/town/new_guest.png",
+    "new_guest.portrait.upset": "res://art/portraits/new_guest_upset.png",
+    "mood.upset": "res://art/town/mood_upset.png",
 
     "town.welcome_banner": "res://art/town/welcome_banner.png",
     "town.letter": "res://art/town/letter.png",
@@ -28,6 +31,7 @@
     "inn.bed": "res://art/inn/bed.png",
     "inn.table_key": "res://art/inn/table_key.png",
     "inn.door_reserved": "res://art/inn/door_reserved.png",
-    "inn.door_light": "res://art/inn/door_light.png"
+    "inn.door_light": "res://art/inn/door_light.png",
+    "inn.door_name": "res://art/inn/door_name.png"
   }
 }

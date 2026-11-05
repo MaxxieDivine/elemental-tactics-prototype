@@ -4,8 +4,10 @@
 ## that and use it", plays interactions through the dialogue box, and goes
 ## through exits with a short fade. Nothing here is specific to one map:
 ## exits, arrival cells and facing all come from data.
-## Rules live in core: TownMap (paths, exits), Dialogue (data + flags),
-## GameSession (flags and where the player is, across maps and fights).
+## Rules live in core: TownMap (paths, exits, flag-based world state, pacing
+## routes), Dialogue (data + flags), GameSession (flags and where the player
+## is, across maps and fights). When a conversation changes a flag that moves,
+## shows or hides something on this map, the map is rebuilt behind a short fade.
 ## Asks the app for a fight with `fight_requested`; never runs one itself.
 extends Node2D
 
@@ -35,6 +37,8 @@ var ts: int = 16
 var zoom: float = 2.5  # world pixels -> UI units (snapped to whole device pixels)
 var step_time: float = 0.16
 var fade_time: float = 0.35
+var pace_step_time: float = 0.45  # seconds per pacing step
+var pace_wait: float = 1.2  # pause at each pace point
 
 var world_root: Node2D  # everything belonging to the current map
 var ground: TileMapLayer
@@ -48,6 +52,8 @@ var fade: ColorRect
 var transitioning := false
 var player
 var actors: Dictionary = {}  # id -> TownActor
+## Pacing NPCs being animated: id -> {"from": Vector2, "t": float, "dur": float, "wait": float}
+var pacing: Dictionary = {}
 
 var player_cell: Vector2i
 var path: Array = []  # cells still to walk
@@ -66,6 +72,8 @@ func _ready() -> void:
 	ts = int(world.get("tile_size", 16))
 	step_time = float(world.get("step_time", 0.16))
 	fade_time = float(world.get("fade_time", 0.35))
+	pace_step_time = float(world.get("pace_step_time", pace_step_time))
+	pace_wait = float(world.get("pace_wait", pace_wait))
 	session = GameSession.get_current()
 	dialogue = Dialogue.new(session.flags)
 	camera = Camera2D.new()
@@ -84,12 +92,12 @@ func _ready() -> void:
 ## Shows map `id` with the player on `cell` facing `facing`. Returns false
 ## (and changes nothing) if the map does not exist.
 func load_map(id: String, cell: Vector2i, facing: String) -> bool:
-	var m = TownMap.load_map(id)
+	var m = TownMap.load_map(id, session.flags)
 	if m == null:
 		return false
 	map = m
 	map_id = id
-	def = TownMap.map_def(id)
+	def = map.def  # world state already applied for the current flags
 	path = []
 	target_id = ""
 	_step_t = 0.0
@@ -97,6 +105,7 @@ func load_map(id: String, cell: Vector2i, facing: String) -> bool:
 		remove_child(world_root)
 		world_root.queue_free()
 	actors.clear()
+	pacing.clear()
 	world_root = Node2D.new()
 	add_child(world_root)
 	move_child(world_root, 0)
@@ -137,7 +146,9 @@ func _build_world(facing: String) -> void:
 	var chars: Dictionary = GameData.get_json("characters")
 	for n in def.get("npcs", []):
 		var c: Dictionary = chars.get(n["character"], {})
-		_add_actor(n["id"], "character", TownMap.cell_of(n["cell"]), c.get("sprite", ""), c.get("color", "#888888"), "", n.get("facing", "down"))
+		var a = _add_actor(n["id"], "character", map.cell_of_thing(n["id"]), c.get("sprite", ""), c.get("color", "#888888"), "", n.get("facing", "down"), str(n.get("mood", "")))
+		if map.pacers.has(n["id"]):
+			pacing[n["id"]] = {"from": a.position, "t": 0.0, "dur": float(n.get("pace_step_time", pace_step_time)), "wait": float(n.get("pace_wait", pace_wait))}
 	for o in def.get("objects", []):
 		_add_actor(o["id"], "object", TownMap.cell_of(o["cell"]), o.get("sprite", ""), o.get("color", "#888888"), o.get("shape", ""))
 	for i in def.get("props", []).size():
@@ -148,11 +159,12 @@ func _build_world(facing: String) -> void:
 	player = _add_actor("player", "character", player_cell, pc.get("sprite", ""), pc.get("color", "#ffffff"), "", facing)
 
 
-func _add_actor(id: String, kind: String, cell: Vector2i, sprite: String, color: String, shape: String, facing: String = "down"):
+func _add_actor(id: String, kind: String, cell: Vector2i, sprite: String, color: String, shape: String, facing: String = "down", mood: String = ""):
 	var a = TownActor.new()
 	a.id = id
 	a.kind = kind
 	a.shape = shape
+	a.mood = mood
 	a.color = Color(color)
 	a.facing = facing
 	a.position = feet(cell)
@@ -280,7 +292,41 @@ func is_idle() -> bool:
 
 func _process(delta: float) -> void:
 	_walk(delta)
+	_pace(delta)
 	_follow(delta)
+
+
+## True while NPC `id` should hold still: a conversation is open, the map is
+## changing, or the player is walking over to talk to it.
+func pacing_paused(id: String) -> bool:
+	return dialogue_box.is_open() or transitioning or target_id == id
+
+
+## Steps pacing NPCs along their data routes. A step never goes onto the
+## player's tile or the rest of the player's path, so it never blocks them.
+func _pace(delta: float) -> void:
+	for id in pacing:
+		var p: Dictionary = pacing[id]
+		var a = actors[id]
+		var pacer = map.pacers[id]
+		if p["t"] > 0.0:
+			p["t"] = maxf(0.0, p["t"] - delta)
+			a.position = p["from"].lerp(feet(pacer.cell), 1.0 - p["t"] / p["dur"])
+			if p["t"] <= 0.0 and pacer.at_stop():
+				p["hold"] = p["wait"]
+				a.facing = str(map.targets[id]["def"].get("facing", a.facing))  # look at whoever they are upset with
+			continue
+		if pacing_paused(id):
+			continue
+		if p.get("hold", 0.0) > 0.0:
+			p["hold"] -= delta
+			continue
+		var from: Vector2i = pacer.cell
+		if map.step_pacer(id, func(c): return c == player_cell or path.has(c)):
+			a.facing = TownMap.facing_toward(from, pacer.cell)
+			p["from"] = a.position
+			p["dur"] = maxf(0.0001, p["dur"])
+			p["t"] = p["dur"]
 
 
 func _walk(delta: float) -> void:
@@ -362,6 +408,32 @@ func _on_dialogue_closed() -> void:
 		var req: Dictionary = dialogue.fight_request
 		dialogue.fight_request = {}
 		fight_requested.emit(req)
+		return
+	refresh_world()
+
+
+## Re-applies the flag-based world state after flags may have changed. If an
+## NPC/object on this map appears, disappears, moves or changes, the map is
+## rebuilt behind a short fade with the player where they stand. Returns true
+## if anything changed.
+func refresh_world() -> bool:
+	var now = TownMap.load_map(map_id, session.flags)
+	if now == null or (now.def.get("npcs", []) == def.get("npcs", []) and now.def.get("objects", []) == def.get("objects", [])):
+		return false
+	transitioning = true
+	var facing: String = player.facing
+	if fade_time > 0.0:
+		var out := create_tween()
+		out.tween_property(fade, "color:a", 1.0, fade_time * 0.5)
+		await out.finished
+	load_map(map_id, player_cell, facing)
+	if fade_time > 0.0:
+		var back := create_tween()
+		back.tween_property(fade, "color:a", 0.0, fade_time * 0.5)
+		await back.finished
+	fade.color.a = 0.0
+	transitioning = false
+	return true
 
 
 # =========================================================================
