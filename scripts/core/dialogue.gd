@@ -65,22 +65,33 @@ func is_last_line() -> bool:
 	return not finished and index >= entry["lines"].size() - 1
 
 
-## The current line: {"speaker", "name", "text", "portrait", "color", "button"}.
-## "button" is the label for the action that ends this line.
+## The current line: {"speaker", "name", "initials", "text", "portrait",
+## "color", "button"}. "button" is the label for the action that ends this
+## line; "initials" is what a placeholder portrait shows (see initials_of).
 func line() -> Dictionary:
 	if finished:
 		return {}
 	var l: Dictionary = entry["lines"][index]
 	var speaker: String = l.get("speaker", "")
 	var c: Dictionary = GameData.get_json("characters").get(speaker, {})
+	var display: String = str(l.get("name", c.get("name", speaker.capitalize())))
 	return {
 		"speaker": speaker,
-		"name": str(l.get("name", c.get("name", speaker.capitalize()))),
+		"name": display,
+		"initials": initials_of(display),
 		"text": str(l.get("text", "")),
 		"portrait": str(l.get("portrait", c.get("portrait", ""))),
 		"color": str(c.get("color", "#888888")),
 		"button": str(l.get("button", default_button("close" if is_last_line() else "next"))),
 	}
+
+
+## What a placeholder portrait shows for a display name: a short name (up
+## to 3 characters, like "???") in full, else its first letter.
+static func initials_of(display_name: String) -> String:
+	if display_name.length() <= 3:
+		return display_name
+	return display_name.left(1).to_upper()
 
 
 ## Moves to the next line. Returns true while there is a line to show;

@@ -8,6 +8,10 @@
 ## Things on a wall tile (lanterns, the key board, the fireplace) stand on
 ## the wall's bottom edge. Some placeholder shapes loop a small animation
 ## (the arcade screen, the fire, the humming hatch).
+##
+## A character can show a mood mark above the head (a map NPC's "mood", e.g.
+## "upset"): the art key "mood.<name>" if that file exists, else a drawn
+## placeholder that bobs so it catches the eye.
 extends Node2D
 
 const AssetCatalog = preload("res://scripts/core/asset_catalog.gd")
@@ -18,7 +22,9 @@ const INK := Color("#1d1b24")
 ## Placeholder shapes that loop a small animation.
 const ANIMATED := ["hatch", "arcade", "fireplace", "door_light", "lantern"]
 ## Shapes drawn without a ground shadow (on walls, flat, or invisible).
-const NO_SHADOW := ["hatch", "none", "lantern", "key_board", "fireplace", "door_reserved", "door_light"]
+const NO_SHADOW := ["hatch", "none", "lantern", "key_board", "fireplace", "door_reserved", "door_light", "door_name"]
+## Moods with a drawn placeholder mark (others show the generic one).
+const MOODS := ["upset"]
 const ANIM_FPS := 12.0
 
 var id: String = ""
@@ -31,14 +37,22 @@ var facing: String = "down":
 			facing = v
 			queue_redraw()
 var tex: Texture2D
+var mood: String = ""  # "" for none; set before setup()
+var mood_tex: Texture2D
 var t: float = 0.0  # animation clock
 var _since_draw: float = 0.0
 
 
 func setup(key: String) -> void:
 	tex = AssetCatalog.try_texture(key) if key != "" else null
-	set_process(tex == null and ANIMATED.has(shape))
+	mood_tex = AssetCatalog.try_texture("mood." + mood) if mood != "" else null
+	set_process((tex == null and ANIMATED.has(shape)) or mood != "")
 	queue_redraw()
+
+
+## True while a mood mark is showing above this actor.
+func shows_mood() -> bool:
+	return mood != ""
 
 
 func _process(delta: float) -> void:
@@ -57,6 +71,29 @@ func _draw() -> void:
 		_draw_character()
 	else:
 		_draw_object()
+	if mood != "":
+		_draw_mood()
+
+
+## The mood mark above the head: art if it exists, else a red "!" with
+## little anger ticks, hopping every second so it reads at a glance.
+func _draw_mood() -> void:
+	var hop := -2.0 * _pulse(0.9)
+	var top := (-tex.get_size().y if tex != null else -22.0) - 4.0 + hop
+	if mood_tex != null:
+		var sz := mood_tex.get_size()
+		draw_texture(mood_tex, Vector2(-sz.x * 0.5, top - sz.y))
+		return
+	var red := Color("#e8403a") if mood == "upset" else Color("#f6d55c")
+	draw_rect(Rect2(-3, top - 10, 6, 10), INK)  # outlined bubble
+	draw_rect(Rect2(-2, top - 9, 4, 8), Color.WHITE)
+	draw_rect(Rect2(-1, top - 8, 2, 4), red)  # "!"
+	draw_rect(Rect2(-1, top - 3, 2, 1), red)
+	if MOODS.has(mood):
+		var flick := 1.0 if fmod(t, 0.6) < 0.3 else 0.0
+		for side in [-1.0, 1.0]:  # anger ticks either side, flickering
+			draw_line(Vector2(side * 5, top - 8 - flick), Vector2(side * 7, top - 10 - flick), red, 1.0)
+			draw_line(Vector2(side * 5, top - 5), Vector2(side * 8, top - 5), red, 1.0)
 
 
 func draw_ellipse_shadow() -> void:
@@ -216,6 +253,13 @@ func _draw_object() -> void:
 			draw_rect(Rect2(0, -6, 7, 4), color)  # "Reserved" card
 			draw_rect(Rect2(1, -5, 5, 1), Color("#c0392b"))
 			draw_rect(Rect2(1, -3, 4, 1), Color("#8d8577"))
+		"door_name":
+			# The Reserved card is gone; a name card with smudged wet ink.
+			draw_rect(Rect2(0, -7, 7, 4), color)
+			draw_rect(Rect2(0, -7, 7, 1), color.darkened(0.15))
+			draw_rect(Rect2(1, -5, 5, 1), Color("#3a4f9a"))
+			draw_rect(Rect2(2, -4, 3, 1), Color(0.23, 0.31, 0.6, 0.55))  # running ink
+			draw_rect(Rect2(4, -3, 1, 2), Color(0.23, 0.31, 0.6, 0.4))
 		"door_light":
 			var a := 0.55 + 0.3 * _pulse(2.6)
 			draw_rect(Rect2(-5, -1, 10, 1), Color(color, a))  # light under the door
