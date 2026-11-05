@@ -35,3 +35,6 @@ Thumbs.db
 .env.*
 *.key
 *.pem
+
+# Written by tools/build_web.sh for each web build
+data/build.json
