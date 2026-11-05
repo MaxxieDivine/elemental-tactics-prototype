@@ -10,6 +10,7 @@ const SUITES := [
 	"res://tests/test_assets.gd",
 	"res://tests/test_story.gd",
 	"res://tests/test_town.gd",
+	"res://tests/test_world_state.gd",
 	"res://tests/test_ui_text.gd",
 ]
 
@@ -34,7 +35,11 @@ func _report(name: String, failures: Array) -> void:
 
 func _run() -> void:
 	for path in SUITES:
-		var suite = load(path).new()
+		var script = load(path)
+		if script == null or not script.can_instantiate():
+			_report(path, ["suite failed to load (script error above)"])
+			continue
+		var suite = script.new()
 		for m in suite.get_method_list():
 			var name: String = m["name"]
 			if not name.begins_with("test_"):
