@@ -1,7 +1,7 @@
 {
   "_comment": "The town slice. 'map' rows use the 'tiles' legend. 'atlas' is the tile's cell in the town.tiles texture (16x16 tiles); when that texture is missing, placeholder tiles are generated in those cells from 'color' and 'pattern'. npcs/objects/props block movement and are depth-sorted with the player.",
   "tile_size": 16,
-  "zoom": 3,
+  "zoom": 2.5,
   "step_time": 0.16,
   "text_speed": 45,
 

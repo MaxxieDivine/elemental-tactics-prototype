@@ -34,6 +34,7 @@ var info_text: RichTextLabel
 var over_layer: ColorRect
 var over_label: Label
 var over_btn: Button
+var menu_btn: Button
 var portrait: bool = true
 var metrics: Dictionary = {}
 var _laying_out := false
@@ -119,6 +120,12 @@ func _build() -> void:
 	over_btn.add_theme_font_size_override("font_size", 20)
 	over_btn.focus_mode = Control.FOCUS_NONE
 	box.add_child(over_btn)
+	menu_btn = Button.new()
+	menu_btn.text = "Menu"
+	menu_btn.custom_minimum_size = Vector2(200, 56)
+	menu_btn.add_theme_font_size_override("font_size", 20)
+	menu_btn.focus_mode = Control.FOCUS_NONE
+	box.add_child(menu_btn)
 
 
 func _row() -> HBoxContainer:

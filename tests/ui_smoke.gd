@@ -8,6 +8,7 @@ const NO := Vector2i(-1, -1)
 var tree: SceneTree
 var main
 var shots_dir := ""
+var completed := false  # false if the run stopped early on a script error
 
 
 func frames(n: int = 2) -> void:
@@ -125,3 +126,4 @@ func run(t: SceneTree, shots: String) -> void:
 	check(main.state.round_num == 1 and main.state.living("enemy").size() == 5, "restart resets fight")
 	main.queue_free()
 	await frames()
+	completed = true
