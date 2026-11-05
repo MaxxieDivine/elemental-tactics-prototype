@@ -9,7 +9,7 @@
 ##   "set_flags": [...], "set_time": "night"  (applied here, right away)
 ##   "card": "...", "card_time": s  (a short text card over a fade)
 ##   "place": [x, y], "facing": "left"  (where the player stands afterwards)
-##   "go_to": "cellar"  (with "place": the player goes to that map)
+##   "go_to": "<map id>"  (with "place": the player goes to that map)
 ##   "fade_out": [ids], "fade_in": [ids], "fade_time": s  (world objects)
 ## The runner applies the story effects when the line is left and hands the
 ## step to the view (take_step) to show. Not a cutscene system: no movement.
