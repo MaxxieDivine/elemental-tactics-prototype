@@ -1,4 +1,13 @@
 {
-  "_comment": "Developer switches. debug_tile_text: show raw tile text such as 'Tile 5,6: floor' (coordinates, plain floor) in the fight's info panel. Off for players.",
-  "debug_tile_text": false
+  "_comment": "Developer switches. debug_tile_text: show raw tile text such as 'Tile 5,6: floor' (coordinates, plain floor) in the fight's info panel. Off for players. shortcuts: extra start-screen buttons that begin a fresh story with these flags and time of day, standing at map/cell/facing (for testing a later scene without replaying). Turn one off with \"enabled\": false.",
+  "debug_tile_text": false,
+  "shortcuts": [
+    {
+      "label": "Cellar test", "enabled": true,
+      "flags": ["read_letter", "found_room_key", "met_new_guest", "first_night_started", "saw_ferry", "read_night_letter", "first_night_over"],
+      "ran": ["dock_end_trigger"],
+      "time_of_day": "day",
+      "map": "town", "cell": [8, 4], "facing": "right"
+    }
+  ]
 }

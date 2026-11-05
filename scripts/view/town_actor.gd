@@ -15,14 +15,15 @@
 extends Node2D
 
 const AssetCatalog = preload("res://scripts/core/asset_catalog.gd")
+const PixelArt = preload("res://scripts/view/pixel_art.gd")
 
 const FRAMES := ["down", "left", "right", "up"]
 const SKIN := Color("#f1c9a5")
 const INK := Color("#1d1b24")
 ## Placeholder shapes that loop a small animation.
-const ANIMATED := ["hatch", "arcade", "fireplace", "door_light", "lantern", "ferry"]
+const ANIMATED := ["hatch", "hatch_unlocked", "arcade", "fireplace", "door_light", "lantern", "ferry", "rat", "candle_rat", "humming_case", "office_window"]
 ## Shapes drawn without a ground shadow (on walls, flat, or invisible).
-const NO_SHADOW := ["hatch", "none", "lantern", "key_board", "fireplace", "door_reserved", "door_light", "door_name", "ferry"]
+const NO_SHADOW := ["hatch", "hatch_unlocked", "none", "lantern", "key_board", "fireplace", "door_reserved", "door_light", "door_name", "ferry", "tall_shelf", "dock_office", "office_door", "office_window"]
 ## Moods with a drawn placeholder mark (others show the generic one).
 const MOODS := ["upset"]
 const ANIM_FPS := 12.0
@@ -125,30 +126,8 @@ func _draw_texture() -> void:
 
 
 func _draw_character() -> void:
-	# Body, head and a facing cue: eyes, plus a small arrow at the feet.
-	var dark := color.darkened(0.35)
-	draw_rect(Rect2(-4, -4, 3, 3), dark)  # legs
-	draw_rect(Rect2(1, -4, 3, 3), dark)
-	draw_rect(Rect2(-5, -13, 10, 10), color)  # body
-	draw_rect(Rect2(-5, -13, 10, 2), color.lightened(0.2))
-	draw_rect(Rect2(-4, -21, 8, 8), SKIN)  # head
-	draw_rect(Rect2(-4, -22, 8, 3), dark)  # hair
-	match facing:
-		"down":
-			draw_rect(Rect2(-3, -18, 1, 2), INK)
-			draw_rect(Rect2(2, -18, 1, 2), INK)
-		"left":
-			draw_rect(Rect2(-4, -18, 1, 2), INK)
-			draw_rect(Rect2(1, -22, 3, 6), dark)
-		"right":
-			draw_rect(Rect2(3, -18, 1, 2), INK)
-			draw_rect(Rect2(-4, -22, 3, 6), dark)
-		"up":
-			draw_rect(Rect2(-4, -22, 8, 6), dark)
-	var d: Vector2 = {"down": Vector2(0, 1), "up": Vector2(0, -1), "left": Vector2(-1, 0), "right": Vector2(1, 0)}.get(facing, Vector2(0, 1))
-	var tip := Vector2(0, -1) + d * 8.0
-	var side := Vector2(-d.y, d.x) * 2.5
-	draw_colored_polygon(PackedVector2Array([tip, tip - d * 3.0 + side, tip - d * 3.0 - side]), Color(1, 1, 1, 0.85))
+	# Body, head and a facing cue (shared with the pixel-style fight).
+	PixelArt.character(self, color, facing)
 
 
 func _draw_object() -> void:
@@ -171,6 +150,56 @@ func _draw_object() -> void:
 			draw_rect(Rect2(-1, -11, 2, 2), Color("#c0392b"))  # seal
 		"hatch":
 			_draw_hatch()
+		"hatch_unlocked":
+			_draw_hatch(false)
+		"rat", "candle_rat":
+			PixelArt.draw(self, shape, color, t, "left" if id.hash() % 2 == 0 else "right")
+		"cellar_lantern":
+			PixelArt.lantern(self, color, t)
+		"fallen_shelf":
+			_draw_fallen_shelf()
+		"tall_shelf":
+			_draw_tall_shelf()
+		"luggage_pile":
+			_suitcase(Vector2(-6, 0), Vector2(12, 6), color, true)
+			_suitcase(Vector2(-5, -6), Vector2(10, 5), color.lightened(0.2).lerp(Color("#8a6a44"), 0.4), false)
+			_tag(Vector2(4, -4), false)
+		"suitcase":
+			_suitcase(Vector2(-6, 0), Vector2(12, 9), color, true)
+			_tag(Vector2(5, -5), true)
+		"blank_tags":
+			draw_rect(Rect2(-6, -8, 12, 8), color)  # crate
+			draw_rect(Rect2(-6, -8, 12, 1), color.lightened(0.25))
+			draw_line(Vector2(-6, -4), Vector2(6, -4), color.darkened(0.3), 1.0)
+			_tag(Vector2(-3, -9), false)
+			_tag(Vector2(2, -9), false)
+		"ribbon_case":
+			_suitcase(Vector2(-6, 0), Vector2(12, 9), color, true)
+			_tag(Vector2(5, -5), true)
+			var ribbon := Color("#e0457b")
+			draw_rect(Rect2(-1, -12, 2, 3), ribbon)  # bow on the handle
+			draw_colored_polygon(PackedVector2Array([Vector2(0, -11), Vector2(-4, -13), Vector2(-4, -9)]), ribbon)
+			draw_colored_polygon(PackedVector2Array([Vector2(0, -11), Vector2(4, -13), Vector2(4, -9)]), ribbon)
+			draw_line(Vector2(-1, -9), Vector2(-3, -5), ribbon, 1.0)
+			draw_line(Vector2(1, -9), Vector2(2, -5), ribbon, 1.0)
+		"humming_case":
+			_draw_humming_case()
+		"dock_office":
+			_draw_dock_office()
+		"office_door":
+			draw_rect(Rect2(-5, -13, 10, 13), Color("#3b2a1f"))  # frame
+			draw_rect(Rect2(-4, -12, 8, 12), color)
+			draw_line(Vector2(0, -12), Vector2(0, 0), color.darkened(0.3), 1.0)
+			draw_rect(Rect2(2, -6, 1, 1), Color("#e0b44a"))  # knob
+			draw_rect(Rect2(-3, -10, 6, 3), Color("#c9b48a"))  # "Closed" plank
+			draw_rect(Rect2(-2, -9, 4, 1), Color("#7a3b2e"))
+		"office_window":
+			var warm := 0.9 + 0.1 * _pulse(2.8)
+			draw_rect(Rect2(-5, -12, 10, 9), Color("#3b2a1f"))  # frame
+			draw_rect(Rect2(-4, -11, 8, 7), Color(color, warm))
+			draw_rect(Rect2(-4, -11, 8, 1), Color("#fff1c2"))
+			draw_line(Vector2(0, -11), Vector2(0, -4), Color("#3b2a1f"), 1.0)
+			draw_line(Vector2(-4, -8), Vector2(4, -8), Color("#3b2a1f"), 1.0)
 		"tree":
 			draw_rect(Rect2(-2, -9, 4, 9), Color("#6b4a2b"))
 			draw_circle(Vector2(0, -16), 8.0, color)
@@ -294,9 +323,9 @@ func _draw_object() -> void:
 
 
 ## A slanted cellar hatch leaning against the wall behind it: two wooden
-## leaves narrowing toward the wall, iron bands, a padlock, and faint
-## humming ripples (with the padlock buzzing now and then).
-func _draw_hatch() -> void:
+## leaves narrowing toward the wall, iron bands, a padlock (or, unlocked,
+## an open hasp), and faint humming ripples (the padlock buzzing now and then).
+func _draw_hatch(locked: bool = true) -> void:
 	var dark := color.darkened(0.45)
 	var stone := Color("#7d766c")
 	# Low stone cheeks: the slope rises from the ground (y 0) to the wall (y -12).
@@ -315,12 +344,18 @@ func _draw_hatch() -> void:
 		var hw: float = 5.0 + (y + 12.0) / 11.0 * 1.5
 		draw_line(Vector2(-hw, y + 0.5), Vector2(hw, y + 0.5), Color("#3b3b46"), 1.0)  # iron straps
 	draw_rect(Rect2(-8, -1, 16, 1), stone.darkened(0.35))  # front lip
-	# Padlock on the hasp; it buzzes for a moment every couple of seconds.
-	var buzz := fmod(t, 2.2) < 0.35
-	var jx := (1.0 if int(t * 24.0) % 2 == 0 else 0.0) if buzz else 0.0
-	draw_rect(Rect2(-1 + jx, -8, 3, 1), Color("#9aa0a8"))  # shackle
-	draw_rect(Rect2(-2 + jx, -7, 5, 3), Color("#c9c3b5"))
-	draw_rect(Rect2(0 + jx, -6, 1, 1), INK)
+	if locked:
+		# Padlock on the hasp; it buzzes for a moment every couple of seconds.
+		var buzz := fmod(t, 2.2) < 0.35
+		var jx := (1.0 if int(t * 24.0) % 2 == 0 else 0.0) if buzz else 0.0
+		draw_rect(Rect2(-1 + jx, -8, 3, 1), Color("#9aa0a8"))  # shackle
+		draw_rect(Rect2(-2 + jx, -7, 5, 3), Color("#c9c3b5"))
+		draw_rect(Rect2(0 + jx, -6, 1, 1), INK)
+	else:
+		# The padlock is gone; the hasp hangs open and the leaves sit ajar.
+		draw_line(Vector2(1, -8), Vector2(3, -5), Color("#9aa0a8"), 1.0)
+		draw_rect(Rect2(-1, -8, 2, 1), Color("#6a6e76"))
+		draw_line(Vector2(-1, -12), Vector2(1, -12), Color(0, 0, 0, 0.55), 1.0)  # dark gap at the seam
 	# Humming ripples drifting out from the hatch.
 	for k in 2:
 		var ph := fmod(t * 0.7 + k * 0.5, 1.0)
@@ -402,3 +437,116 @@ func _draw_fireplace() -> void:
 	draw_colored_polygon(PackedVector2Array([Vector2(1, -1), Vector2(2.5, -1 - h3), Vector2(4, -1)]), Color("#ff6b3d"))
 	draw_colored_polygon(PackedVector2Array([Vector2(-1, -1), Vector2(0, -1 - h2 * 0.5), Vector2(1, -1)]), Color("#f6d55c"))
 	draw_rect(Rect2(-4, -1, 8, 1), Color("#5e3c22"))  # logs
+
+
+## A wooden suitcase lying on the floor (bottom-left corner at `at`): lid
+## seam, corner caps, brass clasps and a handle.
+func _suitcase(at: Vector2, size: Vector2, col: Color, handle: bool) -> void:
+	var r := Rect2(at.x, at.y - size.y, size.x, size.y)
+	draw_rect(r, col.darkened(0.45))
+	draw_rect(r.grow(-1), col)
+	draw_rect(Rect2(r.position.x + 1, r.position.y + 1, r.size.x - 2, 1), col.lightened(0.25))
+	draw_line(Vector2(r.position.x + 1, r.position.y + 3.5), Vector2(r.end.x - 1, r.position.y + 3.5), col.darkened(0.3), 1.0)
+	for x in [r.position.x + 2, r.end.x - 3]:
+		draw_rect(Rect2(x, r.position.y + 2, 1, 2), Color("#e0b44a"))  # clasps
+	if handle:
+		draw_rect(Rect2(r.get_center().x - 2, r.position.y - 2, 4, 1), Color("#3b2a20"))
+		draw_rect(Rect2(r.get_center().x - 2, r.position.y - 2, 1, 2), Color("#3b2a20"))
+		draw_rect(Rect2(r.get_center().x + 1, r.position.y - 2, 1, 2), Color("#3b2a20"))
+
+
+## A paper luggage tag on a string (top of the string at `at`); `written`
+## adds a line of ink.
+func _tag(at: Vector2, written: bool) -> void:
+	draw_line(at, at + Vector2(0, 2), Color("#c9c3b5"), 1.0)
+	draw_rect(Rect2(at.x - 1, at.y + 2, 3, 4), Color("#f4efe1"))
+	draw_rect(Rect2(at.x, at.y + 2, 1, 1), Color("#8d8577"))  # eyelet
+	if written:
+		draw_rect(Rect2(at.x - 1, at.y + 4, 3, 1), Color("#3a4f9a"))
+
+
+## A tall storage shelf against the wall (two tiles high) crammed with old
+## suitcases, a few with paper tags hanging off them.
+func _draw_tall_shelf() -> void:
+	var wood := color
+	var dark := wood.darkened(0.4)
+	draw_rect(Rect2(-8, -31, 16, 31), dark)  # back
+	draw_rect(Rect2(-8, -31, 2, 31), wood)  # uprights
+	draw_rect(Rect2(6, -31, 2, 31), wood.darkened(0.15))
+	var cases := [Color("#7a5a3a"), Color("#5a6a7a"), Color("#8a3b2e"), Color("#4f6b4a"), Color("#9a8a6a")]
+	for i in 3:
+		var y := -1 - i * 10
+		draw_rect(Rect2(-8, y, 16, 1), wood.lightened(0.15))  # plank
+		var c1: Color = cases[(i * 2 + id.length()) % cases.size()]
+		var c2: Color = cases[(i * 2 + 1 + id.length()) % cases.size()]
+		draw_rect(Rect2(-6, y - 6, 6, 6), c1)
+		draw_rect(Rect2(-6, y - 6, 6, 1), c1.lightened(0.2))
+		draw_rect(Rect2(1, y - 5, 5, 5), c2)
+		draw_rect(Rect2(1, y - 5, 5, 1), c2.lightened(0.2))
+		if i != 1:
+			_tag(Vector2(-2, y - 5), true)
+	draw_rect(Rect2(-8, -31, 16, 1), wood.lightened(0.25))  # top
+
+
+## A shelf that has toppled across the doorway, spilling a suitcase.
+func _draw_fallen_shelf() -> void:
+	var wood := color
+	draw_colored_polygon(PackedVector2Array([Vector2(-8, -3), Vector2(-6, -12), Vector2(8, -8), Vector2(7, 0), Vector2(-7, 0)]), wood.darkened(0.45))
+	draw_colored_polygon(PackedVector2Array([Vector2(-8, -4), Vector2(-6, -12), Vector2(8, -8), Vector2(8, -5)]), wood)
+	for k in 3:
+		var x := -4.0 + k * 4.5
+		draw_line(Vector2(x, -11 + k * 1.3), Vector2(x + 1, -4), wood.darkened(0.3), 1.0)  # shelf boards
+	draw_line(Vector2(-6, -12), Vector2(8, -8), wood.lightened(0.25), 1.0)
+	_suitcase(Vector2(-7, 0), Vector2(7, 4), Color("#5a6a7a"), false)
+	draw_rect(Rect2(3, -2, 3, 2), Color("#8a6a44"))  # a broken board
+
+
+## A locked hard case that hums: dark with metal corners, a violet glow
+## at the lock, rings drifting off it and a tiny shiver now and then.
+func _draw_humming_case() -> void:
+	var shiver := (1.0 if int(t * 30.0) % 2 == 0 else 0.0) if fmod(t, 1.7) < 0.2 else 0.0
+	var o := Vector2(shiver, 0)
+	var r := Rect2(Vector2(-6, -10) + o, Vector2(12, 10))
+	draw_rect(r, color.darkened(0.5))
+	draw_rect(r.grow(-1), color)
+	draw_rect(Rect2(r.position + Vector2(1, 1), Vector2(10, 1)), color.lightened(0.3))
+	for corner in [r.position, Vector2(r.end.x - 2, r.position.y), Vector2(r.position.x, r.end.y - 2), r.end - Vector2(2, 2)]:
+		draw_rect(Rect2(corner, Vector2(2, 2)), Color("#9aa0a8"))
+	var glow := 0.55 + 0.45 * _pulse(1.4)
+	draw_rect(Rect2(Vector2(-1, -6) + o, Vector2(2, 2)), Color(0.75, 0.6, 1.0, glow))  # the lock
+	draw_rect(Rect2(Vector2(-2, -12) + o, Vector2(4, 1)), Color("#3b3330"))  # handle
+	for k in 2:
+		var ph := fmod(t * 0.6 + k * 0.5, 1.0)
+		var col := Color(0.75, 0.6, 1.0, 0.55 * (1.0 - ph))
+		var rad := 6.0 + ph * 6.0
+		draw_arc(Vector2(0, -5), rad, -0.6, 0.6, 6, col, 1.0)
+		draw_arc(Vector2(0, -5), rad, PI - 0.6, PI + 0.6, 6, col, 1.0)
+
+
+## The dock office: a small timber building three tiles wide, drawn from its
+## front-middle tile. A "DOCK" sign over the front, and a dark window on the
+## left tile (its warm light is a separate thing that can go out); the door
+## is a separate thing on the right tile.
+func _draw_dock_office() -> void:
+	var wall := color
+	var roof := Color("#3f4a5a")
+	_ellipse(Vector2(0, -1), Vector2(23, 2), Color(0, 0, 0, 0.25))
+	draw_rect(Rect2(-24, -16, 48, 16), wall)  # front wall
+	for x in range(-24, 24, 4):
+		draw_line(Vector2(x, -16), Vector2(x, 0), wall.darkened(0.18), 1.0)  # planks
+	draw_rect(Rect2(-24, -2, 48, 2), Color("#8d8577"))  # stone footing
+	draw_colored_polygon(PackedVector2Array([Vector2(-26, -15), Vector2(-20, -30), Vector2(20, -30), Vector2(26, -15)]), roof)
+	draw_line(Vector2(-26, -15), Vector2(26, -15), roof.darkened(0.35), 1.0)
+	for y in [-26, -22, -18]:
+		draw_line(Vector2(-23 + (y + 30) * 0.2, y), Vector2(23 - (y + 30) * 0.2, y), roof.lightened(0.12), 1.0)  # shingle rows
+	draw_rect(Rect2(-9, -14, 18, 5), Color("#c9b48a"))  # sign
+	draw_rect(Rect2(-9, -14, 18, 1), Color("#e6d9bc"))
+	for i in 4:  # "DOCK" as four blocky letters
+		draw_rect(Rect2(-7 + i * 4, -12, 3, 2), Color("#3b2a1f"))
+	draw_rect(Rect2(-21, -12, 10, 9), Color("#3b2a1f"))  # left window frame
+	draw_rect(Rect2(-20, -11, 8, 7), Color("#1d2433"))  # dark pane
+	draw_line(Vector2(-16, -11), Vector2(-16, -4), Color("#3b2a1f"), 1.0)
+	draw_rect(Rect2(11, -13, 10, 13), Color("#3b2a1f"))  # door frame (the door is its own thing)
+	draw_rect(Rect2(-3, -6, 6, 4), wall.darkened(0.25))  # notice board
+	draw_rect(Rect2(-2, -5, 2, 2), Color("#f4efe1"))
+	draw_rect(Rect2(1, -5, 1, 2), Color("#f4efe1"))

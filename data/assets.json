@@ -35,6 +35,29 @@
     "inn.table_key": "res://art/inn/table_key.png",
     "inn.door_reserved": "res://art/inn/door_reserved.png",
     "inn.door_light": "res://art/inn/door_light.png",
-    "inn.door_name": "res://art/inn/door_name.png"
+    "inn.door_name": "res://art/inn/door_name.png",
+
+    "town.cellar_hatch_open": "res://art/town/cellar_hatch_open.png",
+    "town.dock_office": "res://art/town/dock_office.png",
+    "town.dock_office_door": "res://art/town/dock_office_door.png",
+    "town.dock_office_light": "res://art/town/dock_office_light.png",
+
+    "cellar.lamp": "res://art/cellar/lamp.png",
+    "cellar.shelf": "res://art/cellar/shelf.png",
+    "cellar.luggage": "res://art/cellar/luggage.png",
+    "cellar.fallen_shelf": "res://art/cellar/fallen_shelf.png",
+    "cellar.agador_suitcase": "res://art/cellar/agador_suitcase.png",
+    "cellar.blank_tags": "res://art/cellar/blank_tags.png",
+    "cellar.ribbon_case": "res://art/cellar/ribbon_case.png",
+    "cellar.humming_case": "res://art/cellar/humming_case.png",
+    "cellar.rat": "res://art/cellar/rat.png",
+    "cellar.candle_rat": "res://art/cellar/candle_rat.png",
+    "cellar.lantern": "res://art/cellar/lantern.png",
+
+    "cellar.fight.floor": "res://art/cellar/fight_floor.png",
+    "cellar.fight.shelf": "res://art/cellar/fight_shelf.png",
+    "cellar.fight.oil": "res://art/cellar/fight_oil.png",
+    "cellar.fight.water": "res://art/cellar/fight_water.png",
+    "cellar.fight.steam": "res://art/cellar/fight_steam.png"
   }
 }

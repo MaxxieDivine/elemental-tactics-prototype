@@ -49,7 +49,7 @@ func test_dialogue_advances_line_by_line() -> void:
 	var f = StoryFlags.new()
 	var d = Dialogue.new(f)
 	check(d.start("innkeeper"), "innkeeper dialogue starts")
-	var expected := _data_texts("innkeeper", 3)
+	var expected := _data_texts("innkeeper", 5)
 	var seen: Array = []
 	var speakers: Array = []
 	var guard := 0
@@ -84,9 +84,9 @@ func test_letter_sets_read_letter_only_at_the_end() -> void:
 
 func test_innkeeper_changes_after_read_letter() -> void:
 	var f = StoryFlags.new()
-	eq(_texts("innkeeper", f), _data_texts("innkeeper", 3), "default innkeeper dialogue")
+	eq(_texts("innkeeper", f), _data_texts("innkeeper", 5), "default innkeeper dialogue")
 	f.set_flag("read_letter")
-	eq(_texts("innkeeper", f), _data_texts("innkeeper", 2), "innkeeper dialogue after read_letter")
+	eq(_texts("innkeeper", f), _data_texts("innkeeper", 4), "innkeeper dialogue after read_letter")
 
 
 func _finish(d) -> void:

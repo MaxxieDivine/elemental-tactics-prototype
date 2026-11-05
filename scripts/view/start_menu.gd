@@ -1,14 +1,18 @@
-## Start screen: "Town" (the walkable slice) and "Fight" (the fight on its own,
-## for testing). Presentation only; the app decides what each button does.
+## Start screen: "Town" (the walkable slice), "Fight" (the fight on its own,
+## for testing), and one button per enabled shortcut in data/settings.json
+## (e.g. "Cellar test"). Presentation only; the app decides what each does.
 extends CanvasLayer
 
 signal town_pressed
 signal fight_pressed
+signal shortcut_pressed(shortcut: Dictionary)
 
 const ScreenMetrics = preload("res://scripts/view/screen_metrics.gd")
+const GameSession = preload("res://scripts/core/game_session.gd")
 
 var town_btn: Button
 var fight_btn: Button
+var shortcut_btns: Array = []
 var build_label: Label
 
 
@@ -33,6 +37,10 @@ func _ready() -> void:
 	town_btn.pressed.connect(func(): town_pressed.emit())
 	fight_btn = _button(box, "Fight")
 	fight_btn.pressed.connect(func(): fight_pressed.emit())
+	for sc in GameSession.shortcuts():
+		var b := _button(box, str(sc.get("label", "Shortcut")))
+		b.pressed.connect(func(): shortcut_pressed.emit(sc))
+		shortcut_btns.append(b)
 	build_label = Label.new()
 	build_label.text = build_text()
 	build_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

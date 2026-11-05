@@ -10,6 +10,8 @@ const AssetCatalog = preload("res://scripts/core/asset_catalog.gd")
 
 const SOURCE_ID := 0
 const INTERIOR := ["floorboards", "rug", "walltop", "wallpaper", "window_in", "door_in", "stairs_up", "stairs_down", "doorway", "threshold"]
+## The cellar (town map) and the cellar fight's board tiles.
+const CELLAR := ["flagstone", "cellar_top", "cellar_wall", "cellar_stairs", "shelf", "oil", "puddle", "steam"]
 const WOOD := Color("#8a4a2a")
 const WOOD_DARK := Color("#5e3020")
 const BRASS := Color("#e0b44a")
@@ -111,6 +113,8 @@ static func paint(img: Image, o: Vector2i, ts: int, pattern: String, base: Color
 						c = dark
 			if pattern in INTERIOR:
 				c = _interior(pattern, x, y, ts, base, n)
+			elif pattern in CELLAR:
+				c = _cellar(pattern, x, y, ts, base, n)
 			if pattern == "flowers" and ((x == 3 and y == 4) or (x == 11 and y == 3) or (x == 7 and y == 10) or (x == 13 and y == 12)):
 				c = [Color("#f6d55c"), Color("#f28fb0"), Color.WHITE, Color("#f6d55c")][(x + y) % 4]
 			if pattern == "window" and x >= 4 and x <= 11 and y >= 4 and y <= 11:
@@ -118,6 +122,90 @@ static func paint(img: Image, o: Vector2i, ts: int, pattern: String, base: Color
 			if pattern == "door" and x >= 2 and x <= 13 and y >= 3:
 				c = Color("#5e3c22") if (x == 2 or x == 13 or y == 3) else (Color("#e0b44a") if (x == 11 and y == 9) else Color("#8a5a32"))
 			img.set_pixel(o.x + x, o.y + y, c)
+
+
+## One 16x16 placeholder tile (for the fight's pixel boards).
+static func tile_texture(pattern: String, base: Color, ts: int = 16, seed_value: int = 7) -> Texture2D:
+	var img := Image.create(ts, ts, false, Image.FORMAT_RGBA8)
+	paint(img, Vector2i.ZERO, ts, pattern, base, seed_value)
+	return ImageTexture.create_from_image(img)
+
+
+## Damp stone under the inn: uneven flagstones, rough rock, a brick wall
+## face, worn steps; and for the fight: a shelf seen from above, an oil
+## slick with a sheen, a shallow puddle, a cloud of steam.
+static func _cellar(pattern: String, x: int, y: int, ts: int, base: Color, n: int) -> Color:
+	match pattern:
+		"flagstone":
+			var row := y / 8
+			var gx := (x + (row % 2) * 5) % 8
+			if y % 8 == 7 or gx == 7:
+				return base.darkened(0.3)  # mortar
+			if (y % 8 == 0 or gx == 0) and n > 120:
+				return base.lightened(0.12)  # worn edges catch the light
+			return base.darkened(0.08) if n < 40 else (base.lightened(0.05) if n > 225 else base)
+		"cellar_top":
+			if n < 50:
+				return base.lightened(0.1)
+			return base if n < 220 else base.darkened(0.25)
+		"cellar_wall":
+			if y >= ts - 2:
+				return base.darkened(0.45)  # shadow at the foot
+			if y <= 1:
+				return Color("#2b2522")
+			var row := (y - 2) / 4
+			if (y - 2) % 4 == 3 or (x + (row % 2) * 4) % 8 == 7:
+				return base.darkened(0.3)
+			return base.lightened(0.08) if n > 210 else base
+		"cellar_stairs":
+			if x <= 1 or x >= ts - 2:
+				return Color("#2b2522")
+			var step := y / 4
+			var c := base.lightened(0.3 - step * 0.1)
+			if y % 4 == 0:
+				c = c.lightened(0.2)
+			if y % 4 == 3:
+				c = c.darkened(0.3)
+			return c
+		"shelf":
+			# A shelf from above: wood planks with a suitcase on top.
+			if x == 0 or x == ts - 1 or y == 0 or y == ts - 1:
+				return base.darkened(0.45)
+			if x >= 3 and x <= 12 and y >= 4 and y <= 11:
+				var case_col := Color("#7a5a3a")
+				if x == 3 or x == 12 or y == 4 or y == 11:
+					return case_col.darkened(0.4)
+				if y == 7:
+					return case_col.darkened(0.25)
+				if (x == 5 or x == 10) and y == 6:
+					return Color("#e0b44a")
+				return case_col
+			return base if y % 5 != 0 else base.darkened(0.25)
+		"oil":
+			var dx := absf(x - 7.5)
+			var dy := absf(y - 7.5)
+			if dx + dy > 10.5:
+				return Color("#5d544c").darkened(0.05)  # floor shows at the corners
+			if (x + y) % 9 == 0 and y < 9:
+				return Color("#6a5a7a")  # oily sheen
+			if (x - y) % 11 == 0:
+				return Color("#4a3a28")
+			return base if n > 30 else base.darkened(0.2)
+		"puddle":
+			var dx := absf(x - 7.5)
+			var dy := absf(y - 7.5)
+			if dx + dy > 11.0:
+				return Color("#5d544c")
+			if (y == 5 and x > 4 and x < 9) or (y == 10 and x > 7 and x < 12):
+				return base.lightened(0.35)  # ripples
+			return base if n > 25 else base.darkened(0.15)
+		"steam":
+			var d := Vector2(x - 7.5, y - 7.5).length()
+			var puff := Vector2(x - 5, y - 6).length() < 4.0 or Vector2(x - 10, y - 9).length() < 4.5
+			if puff:
+				return base.lightened(0.2)
+			return base if d < 8.0 else base.darkened(0.25)
+	return base
 
 
 ## Wallpaper above a polished wood wainscot (shared by the wall-based tiles).

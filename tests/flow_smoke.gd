@@ -180,7 +180,7 @@ func guest_scene() -> void:
 		check(not app.session.flags.has("met_new_guest") or not box.is_open(), "met_new_guest is only set at the end")
 		box.tap()
 		box.tap()
-	var entry: Dictionary = GameData.get_json("dialogue")["new_guest"][2]
+	var entry: Dictionary = GameData.get_json("dialogue")["new_guest"][4]
 	eq(texts, entry["lines"].map(func(l): return l["text"]), "the full lobby conversation, from data")
 	eq(speakers, entry["lines"].map(func(l): return l["speaker"]), "three speakers take turns")
 	eq(names[0], GameData.get_json("characters")["new_guest"]["name"], "??? display name from data")
@@ -295,7 +295,7 @@ func first_night() -> void:
 	await shot("town_14_lobby_night")
 	await go("lounge_doorway")
 	check(town().actors.has("new_guest"), "??? stays beside the arcade at night")
-	await talk("new_guest", "new_guest", 0, "??? at night")
+	await talk("new_guest", "new_guest", 2, "??? at night")
 
 	# The arcade works at night and brings you back to the night.
 	var spot: Dictionary = app.session.spot()
@@ -319,7 +319,7 @@ func first_night() -> void:
 	check(not town().actors.has("letter") and not town().actors.has("night_letter"), "no letter on the dock yet")
 	await shot("town_15_town_night")
 	await talk("welcome_banner", "welcome_banner", 0, "banner at night")
-	await talk("cellar_hatch", "cellar_hatch", 0, "hatch at night")
+	await talk("cellar_hatch", "cellar_hatch", 2, "hatch at night")
 
 	# The end of the dock.
 	var trig: Dictionary = town().map.triggers[0]
@@ -373,7 +373,7 @@ func first_night() -> void:
 	await go("room_1_exit")
 	await go("stairs_down")
 	check(town().actors.has("innkeeper"), "the innkeeper is back in the morning")
-	await talk("innkeeper", "innkeeper", 0, "innkeeper in the morning")
+	await talk("innkeeper", "innkeeper", 2, "innkeeper in the morning")
 	await go("lobby_front_door")
 	day_lighting("town in the morning")
 	check(town().actors.has("letter"), "the old letter is back")
@@ -456,7 +456,7 @@ func run(t: SceneTree, shots: String) -> void:
 	eq(town().player_cell.y, hatch.y, "Agador stands beside the hatch, not in front of it")
 	check(town().actors["cellar_hatch"].is_processing(), "the hatch animates (humming)")
 	await shot("town_03_hatch")
-	eq(read_dialogue("hatch"), data_lines("cellar_hatch", 1), "hatch line")
+	eq(read_dialogue("hatch"), data_lines("cellar_hatch", 3), "hatch line")
 	await frames(3)
 	check(town() != null and town().has_method("tap_cell"), "the hatch does not start a fight")
 	# Taps on the map are ignored while a dialogue is open.
@@ -471,7 +471,7 @@ func run(t: SceneTree, shots: String) -> void:
 	eq(town().map_id, "lobby", "the inn door leads into the lobby")
 	check(not town().actors.has("new_guest") and not town().map.targets.has("new_guest"), "??? is not in the lobby before the Room 1 key")
 	await shot("town_04_lobby")
-	await talk("innkeeper", "innkeeper", 3, "innkeeper default")
+	await talk("innkeeper", "innkeeper", 5, "innkeeper default")
 	eq(town().actors["innkeeper"].facing, TownMap.facing_toward(town().map.cell_of_thing("innkeeper"), town().player_cell), "innkeeper turns to face the player")
 	await talk("guest_book", "guest_book", 2, "guest book before the letter")
 	await talk("key_board", "key_board", 0, "key board")
@@ -538,13 +538,13 @@ func run(t: SceneTree, shots: String) -> void:
 	await talk("letter", "letter", 0, "letter")
 	check(app.session.flags.has("read_letter"), "reading the letter sets read_letter")
 	await go("inn_front_door")
-	await talk("innkeeper", "innkeeper", 2, "innkeeper after the letter")
+	await talk("innkeeper", "innkeeper", 4, "innkeeper after the letter")
 	await talk("guest_book", "guest_book", 1, "guest book after the letter")
 	check(town().actors.has("new_guest") and not town().pacing.is_empty(), "??? is still pacing after Agador walked around them")
 
 	# --- The second guest's scene ----------------------------------------------------------
 	await guest_scene()
-	await talk("innkeeper", "innkeeper", 1, "innkeeper after the scene")
+	await talk("innkeeper", "innkeeper", 3, "innkeeper after the scene")
 	await talk("guest_book", "guest_book", 0, "guest book after the scene")
 	await talk("key_board", "key_board", 0, "key board unchanged after the scene")
 	await go("lounge_doorway")
@@ -554,7 +554,7 @@ func run(t: SceneTree, shots: String) -> void:
 	check(town().pacing.is_empty() and town().map.pacers.is_empty(), "??? no longer paces")
 	check(not town().map.targets["arcade"]["stand"].has(town().map.cell_of_thing("new_guest")), "??? does not stand where the arcade is used from")
 	await shot("town_12_lounge_guest")
-	await talk("new_guest", "new_guest", 1, "??? at the arcade")
+	await talk("new_guest", "new_guest", 3, "??? at the arcade")
 	await talk("fireplace", "fireplace", 0, "fireplace unchanged after the scene")
 	fight = await arcade_to_fight(0, "arcade after the scene")
 	await finish_fight(fight, true)
