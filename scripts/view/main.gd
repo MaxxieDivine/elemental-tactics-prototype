@@ -328,7 +328,7 @@ func _send(cmd: Dictionary) -> void:
 func _after_action() -> void:
 	board.set_state(state)
 	var u = _selected()
-	if u == null or u.is_done():
+	if (u == null or u.is_done()) and not (_solo() and u != null):
 		selected_id = -1
 		for h in _heroes():
 			if h.alive and not h.is_done():
@@ -424,6 +424,8 @@ func _prompt(u) -> String:
 		p = "%s: tap a yellow tile to aim. %s" % [ab["name"], ab["desc"]]
 	elif pending != NO_CELL:
 		p = "Tap the same tile again to move there."
+	elif u.is_done():
+		p = "%s is done. Tap End Turn." % u.name
 	elif not u.moved:
 		p = "%s: tap a blue tile to move, or pick an ability." % u.name
 	elif not u.acted:

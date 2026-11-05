@@ -44,6 +44,8 @@ func check_layout(label: String) -> void:
 	var view: Vector2 = hud.metrics["size"]
 	var css: float = hud.metrics["css_per_unit"]
 	for b in hud.hero_btns + hud.ability_btns + [hud.wait_btn, hud.undo_btn, hud.cancel_btn, hud.info_btn, hud.end_btn, hud.restart_btn, hud.speed_btn]:
+		if not b.is_visible_in_tree():
+			continue
 		check(b.size.y * css >= 47.9, "%s: button '%s' is at least 48 CSS px tall" % [label, b.text.split("\n")[0]])
 		var r: Rect2 = b.get_global_rect()
 		check(r.position.x >= -0.5 and r.end.x <= view.x + 0.5 and r.end.y <= view.y + 0.5, "%s: button '%s' on screen" % [label, b.text.split("\n")[0]])
@@ -124,6 +126,71 @@ func run(t: SceneTree, shots: String) -> void:
 
 	main.restart()
 	check(main.state.round_num == 1 and main.state.living("enemy").size() == 5, "restart resets fight")
+	check(main.hud.hero_row.visible, "the arcade keeps its hero tabs")
+	check(not main.board.pixel, "the arcade keeps its shapes-and-colours look")
 	main.queue_free()
 	await frames()
+	await solo_fight()
 	completed = true
+
+
+## The cellar fight: Agador alone on 48 CSS px pixel tiles, no hero tabs.
+func solo_fight() -> void:
+	main = load("res://scenes/main.tscn").instantiate()
+	main.encounter_id = "cellar_rats"
+	tree.root.add_child(main)
+	await frames(3)
+	main.board.speed = 8.0
+	await set_window(Vector2i(390, 844))
+	var hud = main.hud
+	var css: float = hud.metrics["css_per_unit"]
+	check(hud.solo, "a party of one")
+	check(not hud.hero_row.visible, "no hero tabs for one hero")
+	check(main.board.pixel, "the world's pixel look")
+	eq(Vector2i(hud.cols, hud.rows), Vector2i(7, 9), "a 7 x 9 board")
+	check(absf(hud.board_input.cell_size * css - 48.0) < 0.5, "48 CSS px tiles on a phone (got %.1f)" % (hud.board_input.cell_size * css))
+	eq(main.board.k * main.board.CELL / main.board.ART_PX * css, 3.0, "each art pixel is 3 CSS px (16 px art at 3x)")
+	check_layout("cellar phone")
+	var br: Rect2 = hud.board_input.get_global_rect()
+	check(br.position.x >= 0.0 and br.end.x <= hud.metrics["size"].x + 0.5, "no horizontal scrolling")
+	check(hud.ability_panel.position.y >= br.end.y, "the ability panel sits under the board")
+	check(hud.ability_panel.position.y - br.end.y < 10.0, "right under it, where the tabs were")
+	var a = hero_u("agador")
+	eq(main.selected_id, a.id, "Agador is selected from the start")
+	check(hud.ability_title.text.contains(a.name), "the panel is titled with his name")
+	eq(hud.ability_btns.map(func(b): return b.text.split("\n")[0]), ["punch", "kick", "knock_over"].map(func(id): return GameData.ability(id)["name"]), "punch, kick, knock over")
+	check(hud.ability_btns[2].disabled, "Knock over waits until he is next to the lantern")
+	check(hud.info_text.text.contains(a.name), "the turn order names him")
+	await shot("cellar_01_phone")
+	# Walk next to the lantern: Knock over lights up.
+	var lantern := BattleState.terrain_index("cellar_lantern")
+	var spot := Vector2i(-1, -1)
+	for c in main.state.move_destinations(a):
+		for d in BattleState.DIRS:
+			if main.state.get_terrain(c + d) == lantern:
+				spot = c
+	check(spot.x >= 0, "a tile next to the lantern is in reach")
+	await tap(spot)
+	await tap(spot)
+	eq(a.cell, spot, "tap, tap: he moves there")
+	check(not hud.ability_btns[2].disabled, "now Knock over can be used")
+	main.select_ability(2)
+	eq(main.mode, "target", "aiming the lantern")
+	var targets: Array = main.board.target_cells
+	check(not targets.is_empty() and targets.all(func(c): return main.state.get_surface(c) == BattleState.Surface.OIL), "it aims only at oil")
+	await tap(targets[0])
+	check(main.board.preview["tags"].has("IGNITE!"), "the preview shows the oil igniting")
+	await shot("cellar_02_lantern_preview")
+	await tap(targets[0])
+	eq(a.uses["knock_over"], 0, "used")
+	check(hud.ability_btns[2].disabled and hud.ability_btns[2].text.contains("used"), "the button says it is used")
+	# A small phone still fits the board without scrolling sideways.
+	await set_window(Vector2i(360, 640))
+	var r2: Rect2 = hud.board_input.get_global_rect()
+	check(r2.end.x <= hud.metrics["size"].x + 0.5 and r2.end.y <= hud.metrics["size"].y + 0.5, "the whole board fits a small phone")
+	check_layout("cellar small phone")
+	await set_window(Vector2i(1280, 720))
+	check_layout("cellar desktop")
+	await shot("cellar_03_desktop")
+	main.queue_free()
+	await frames()
