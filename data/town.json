@@ -1,0 +1,65 @@
+{
+  "_comment": "The town slice. 'map' rows use the 'tiles' legend. 'atlas' is the tile's cell in the town.tiles texture (16x16 tiles); when that texture is missing, placeholder tiles are generated in those cells from 'color' and 'pattern'. npcs/objects/props block movement and are depth-sorted with the player.",
+  "tile_size": 16,
+  "zoom": 3,
+  "step_time": 0.16,
+  "text_speed": 45,
+
+  "tiles": {
+    "g": { "name": "grass",   "walkable": true,  "atlas": [0, 0], "color": "#5b9e4c", "pattern": "grass" },
+    "f": { "name": "flowers", "walkable": true,  "atlas": [1, 0], "color": "#5b9e4c", "pattern": "flowers" },
+    ".": { "name": "cobble",  "walkable": true,  "atlas": [2, 0], "color": "#b8aa92", "pattern": "cobble" },
+    "p": { "name": "path",    "walkable": true,  "atlas": [3, 0], "color": "#c9a56b", "pattern": "speckle" },
+    "s": { "name": "sand",    "walkable": true,  "atlas": [4, 0], "color": "#e2d196", "pattern": "speckle" },
+    "=": { "name": "dock",    "walkable": true,  "atlas": [5, 0], "color": "#9b6b3d", "pattern": "planks" },
+    "~": { "name": "water",   "walkable": false, "atlas": [6, 0], "color": "#3a7ec2", "pattern": "waves" },
+    "R": { "name": "roof",    "walkable": false, "atlas": [0, 1], "color": "#a5473b", "pattern": "shingles" },
+    "W": { "name": "wall",    "walkable": false, "atlas": [1, 1], "color": "#e6d9bc", "pattern": "wall" },
+    "w": { "name": "window",  "walkable": false, "atlas": [2, 1], "color": "#e6d9bc", "pattern": "window" },
+    "D": { "name": "inn door","walkable": false, "atlas": [3, 1], "color": "#e6d9bc", "pattern": "door" }
+  },
+
+  "map": [
+    "gggggggggggggggg",
+    "ggRRRRRRRRRRggfg",
+    "ggRRRRRRRRRRgggg",
+    "ggWwWWDDWWwWgggg",
+    "gg..........pggg",
+    "gf..........pggg",
+    "gg..........ppgg",
+    "gg............pg",
+    "gg..........ppgg",
+    "ggf.........pggg",
+    "gggg....ppppgggg",
+    "ssssss==ssssssss",
+    "~~~~~~==~~~~~~~~",
+    "~~~~~~==~~~~~~~~",
+    "~~~~~~==~~~~~~~~",
+    "~~~~====~~~~~~~~",
+    "~~~~====~~~~~~~~",
+    "~~~~~~~~~~~~~~~~"
+  ],
+
+  "player": { "character": "believer", "cell": [6, 15], "facing": "up" },
+
+  "npcs": [
+    { "id": "innkeeper", "character": "innkeeper", "cell": [5, 4], "facing": "down", "interaction": "innkeeper" }
+  ],
+
+  "objects": [
+    { "id": "welcome_banner", "name": "Welcome banner", "sprite": "town.welcome_banner", "shape": "banner", "color": "#c0392b", "cell": [9, 8],  "interaction": "welcome_banner" },
+    { "id": "letter",         "name": "Letter",         "sprite": "town.letter",         "shape": "letter", "color": "#f4efe1", "cell": [4, 16], "interaction": "letter" },
+    { "id": "cellar_door",    "name": "Cellar door",    "sprite": "town.cellar_door",    "shape": "hatch",  "color": "#6b4a2b", "cell": [10, 4], "interaction": "cellar_door" }
+  ],
+
+  "props": [
+    { "sprite": "town.tree", "shape": "tree", "color": "#2f6b34", "cell": [13, 2] },
+    { "sprite": "town.tree", "shape": "tree", "color": "#2f6b34", "cell": [15, 6] },
+    { "sprite": "town.tree", "shape": "tree", "color": "#2f6b34", "cell": [1, 8] },
+    { "sprite": "town.tree", "shape": "tree", "color": "#2f6b34", "cell": [14, 10] },
+    { "sprite": "town.tree", "shape": "tree", "color": "#2f6b34", "cell": [0, 1] },
+    { "sprite": "town.lamp", "shape": "lamp", "color": "#3b3b46", "cell": [3, 4] },
+    { "sprite": "town.lamp", "shape": "lamp", "color": "#3b3b46", "cell": [11, 9] },
+    { "sprite": "town.crate", "shape": "crate", "color": "#a0723f", "cell": [7, 16] }
+  ]
+}

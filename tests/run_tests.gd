@@ -9,6 +9,7 @@ const SUITES := [
 	"res://tests/test_turns.gd",
 	"res://tests/test_assets.gd",
 	"res://tests/test_story.gd",
+	"res://tests/test_town.gd",
 ]
 
 var passed := 0
