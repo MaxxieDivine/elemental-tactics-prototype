@@ -6,7 +6,8 @@
 ## Map files live in data/maps/<id>.json. The shared tile legend, tile size
 ## and start position live in data/town.json. NPCs and objects can appear,
 ## disappear, move or change with story flags through their "states" (see
-## WorldState); a map is always built for one set of flags.
+## WorldState); a map is always built for one set of flags. An object or
+## prop bigger than a tile lists the extra cells it blocks in "footprint".
 ## A map may also list "triggers": zones that start an interaction when the
 ## player walks onto one of their cells (see trigger_at).
 extends RefCounted
@@ -83,11 +84,14 @@ static func from_data(raw: Dictionary, flags = null):
 		m.things[c] = n["id"]
 		m._add_target(n, "npc", [c])
 	for o in md.get("objects", []):
-		m.things[cell_of(o["cell"])] = o["id"]
+		var cells := cells_of_thing(o)
+		for c in cells:
+			m.things[c] = o["id"]
 		if str(o.get("interaction", "")) != "":
-			m._add_target(o, "object", [cell_of(o["cell"])])  # scenery (a ferry offshore) is not a target
+			m._add_target(o, "object", cells)  # scenery (a ferry offshore) is not a target
 	for i in md.get("props", []).size():
-		m.things[cell_of(md["props"][i]["cell"])] = "prop_%d" % i
+		for c in cells_of_thing(md["props"][i]):
+			m.things[c] = "prop_%d" % i
 	for e in md.get("exits", []):
 		var cells := exit_cells_of(e)
 		for c in cells:
@@ -99,6 +103,18 @@ static func from_data(raw: Dictionary, flags = null):
 
 static func cell_of(a: Array) -> Vector2i:
 	return Vector2i(int(a[0]), int(a[1]))
+
+
+## Every cell an object or prop blocks: its "cell", then its "footprint"
+## (cells relative to it, for things bigger than one tile, like a building).
+static func cells_of_thing(t: Dictionary) -> Array:
+	var c := cell_of(t["cell"])
+	var out: Array = [c]
+	for off in t.get("footprint", []):
+		var f: Vector2i = c + cell_of(off)
+		if not out.has(f):
+			out.append(f)
+	return out
 
 
 ## An exit's cells: "cells" (a list) or a single "cell".

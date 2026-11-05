@@ -52,5 +52,31 @@
     "range": 4, "los": true, "needs_target": false,
     "damage": 2, "push": 0, "cooldown": 0,
     "desc": "Ranged fire glob. Needs line of sight when it fires."
+  },
+
+  "punch": {
+    "name": "Punch", "element": "physical", "shape": "single",
+    "range": 1, "los": false, "needs_target": true,
+    "damage": 2, "push": 0, "cooldown": 0,
+    "desc": "A solid punch to an adjacent enemy."
+  },
+  "kick": {
+    "name": "Kick", "element": "physical", "shape": "single",
+    "range": 1, "los": false, "needs_target": true,
+    "damage": 1, "push": 1, "cooldown": 0,
+    "desc": "A light kick that shoves an adjacent enemy one tile away."
+  },
+  "knock_over": {
+    "name": "Knock over", "element": "fire", "shape": "single",
+    "range": 1, "los": false, "needs_target": false,
+    "damage": 0, "push": 0, "cooldown": 0,
+    "uses": 1, "source_tile": "cellar_lantern", "needs_text": "by lantern", "target_surface": "oil", "source_becomes": "floor",
+    "desc": "Next to the lantern: tip it onto an oil tile beside it. Once per fight."
+  },
+  "bite": {
+    "name": "Bite", "element": "physical", "shape": "single",
+    "range": 1, "los": false, "needs_target": false,
+    "damage": 1, "push": 0, "cooldown": 0,
+    "desc": "A nip at an adjacent tile."
   }
 }

@@ -3,6 +3,7 @@
 ## fades, and the night's story beats from data, with no softlocks.
 extends "res://tests/test_base.gd"
 
+const WorldLinks = preload("res://tests/world_links.gd")
 const TownMap = preload("res://scripts/core/town_map.gd")
 const WorldState = preload("res://scripts/core/world_state.gd")
 const StoryFlags = preload("res://scripts/core/story_flags.gd")
@@ -54,15 +55,7 @@ func _map_ids() -> Array:
 
 
 func _arrivals(map_id: String) -> Array:
-	var out: Array = []
-	var start: Dictionary = GameSession.start_spot()
-	if start["map"] == map_id:
-		out.append(start["cell"])
-	for other in _map_ids():
-		for e in TownMap.map_def(other).get("exits", []):
-			if e["to"] == map_id:
-				out.append(TownMap.cell_of(e["arrive"]))
-	return out
+	return WorldLinks.arrivals(map_id)
 
 
 ## Where an interaction is used from: [{"map", "id", "stand"}] for every
@@ -279,8 +272,12 @@ func test_transition_cards_and_steps_in_data() -> void:
 				if st.has("set_time"):
 					check(StoryFlags.times().has(st["set_time"]), "%s: set_time '%s' is a known time" % [id, st["set_time"]])
 				for k in st:
-					check(["card", "card_time", "set_time", "set_flags", "place", "facing", "fade_out", "fade_in", "fade_time", "_comment"].has(k), "%s: step key '%s' is known" % [id, k])
-				if st.has("place"):
+					check(["card", "card_time", "set_time", "set_flags", "place", "facing", "go_to", "fade_out", "fade_in", "fade_time", "_comment"].has(k), "%s: step key '%s' is known" % [id, k])
+				if st.has("go_to"):
+					# Moved to another map: placed on a free cell there.
+					var to = TownMap.load_map(str(st["go_to"]), _flags(NIGHT_FLAGS + ["read_night_letter", "first_night_over"]))
+					check(to != null and to.is_walkable(TownMap.cell_of(st["place"])), "%s: go_to %s lands on a free cell" % [id, str(st["go_to"])])
+				elif st.has("place"):
 					# Placed on a free cell where the thing that plays it can be used.
 					for u in _users(id):
 						var m = TownMap.load_map(u["map"], _flags(NIGHT_FLAGS + ["read_night_letter"], "night"))
@@ -441,13 +438,18 @@ func test_morning_restores_npcs_and_objects() -> void:
 		var before = TownMap.load_map(map_id, day_after)
 		var after = TownMap.load_map(map_id, morning)
 		eq(after.def["npcs"], before.def["npcs"], "%s: the same NPCs as before the night" % map_id)
-		eq(after.def["objects"], before.def["objects"], "%s: the same objects as before the night" % map_id)
+		# The hatch's padlock is gone in the morning; everything else is as before.
+		var obj_after: Array = after.def["objects"].filter(func(o): return o["id"] != "cellar_hatch")
+		var obj_before: Array = before.def["objects"].filter(func(o): return o["id"] != "cellar_hatch")
+		eq(obj_after, obj_before, "%s: the same objects as before the night" % map_id)
 	var town = TownMap.load_map("town", morning)
 	check(town.targets.has("letter") and not town.targets.has("night_letter"), "the old letter is back, the new one gone")
 	check(not town.things.values().has("ferry_silhouette"), "no ferry in the morning")
 	eq(_texts("innkeeper", morning), ["I saw the ferry last night.", "The ferry will be back any day now.", "It was here.", "Any day now."], "the innkeeper's morning line")
 	eq(Dialogue.select_entry("innkeeper", morning)["lines"][2]["speaker"], "agador", "Agador insists")
-	for id in ["new_guest", "welcome_banner", "cellar_hatch", "guest_book", "room_2_door", "fireplace", "key_board"]:
+	eq(town.targets["cellar_hatch"]["def"]["shape"], "hatch_unlocked", "the hatch's padlock is gone in the morning")
+	eq(_texts("cellar_hatch", morning), ["The lock's gone. It wasn't like that last night."], "and it says so")
+	for id in ["new_guest", "welcome_banner", "guest_book", "room_2_door", "fireplace", "key_board"]:
 		eq(_texts(id, morning), _texts(id, day_after), "%s: daytime lines in the morning" % id)
 	eq(morning.time_of_day(), "day", "the morning is day")
 
@@ -481,11 +483,14 @@ func test_no_softlock_during_the_night() -> void:
 				for tid in m.targets:
 					var a: Dictionary = m.approach_target(from, tid)
 					check(not a.is_empty(), "%s %s: %s reachable from %s" % [id, str(st), tid, str(from)])
-			for e in m.def.get("exits", []):
-				if not reached.has(e["to"]):
-					reached[e["to"]] = true
-					queue.append(e["to"])
-		eq(reached.size(), _map_ids().size(), "%s: every map reachable" % str(st))
+			for l in WorldLinks.links_from(id, f):
+				if not reached.has(l["map"]):
+					reached[l["map"]] = true
+					queue.append(l["map"])
+		# Every map but the cellar, which opens only after the night.
+		var expect: int = _map_ids().size() - (0 if f.has("first_night_over") else 1)
+		eq(reached.size(), expect, "%s: every map reachable" % str(st))
+		check(reached.has("cellar") == f.has("first_night_over"), "%s: the cellar opens only after the night" % str(st))
 		var lounge = TownMap.load_map("lounge", f)
 		check(lounge.targets.has("arcade") and Dialogue.select_entry("arcade", f).has("start_fight"), "%s: the arcade still starts its fight" % str(st))
 	# Step by step: what moves the story on is always there.

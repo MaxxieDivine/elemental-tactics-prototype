@@ -180,7 +180,7 @@ func guest_scene() -> void:
 		check(not app.session.flags.has("met_new_guest") or not box.is_open(), "met_new_guest is only set at the end")
 		box.tap()
 		box.tap()
-	var entry: Dictionary = GameData.get_json("dialogue")["new_guest"][2]
+	var entry: Dictionary = GameData.get_json("dialogue")["new_guest"][4]
 	eq(texts, entry["lines"].map(func(l): return l["text"]), "the full lobby conversation, from data")
 	eq(speakers, entry["lines"].map(func(l): return l["speaker"]), "three speakers take turns")
 	eq(names[0], GameData.get_json("characters")["new_guest"]["name"], "??? display name from data")
@@ -295,7 +295,7 @@ func first_night() -> void:
 	await shot("town_14_lobby_night")
 	await go("lounge_doorway")
 	check(town().actors.has("new_guest"), "??? stays beside the arcade at night")
-	await talk("new_guest", "new_guest", 0, "??? at night")
+	await talk("new_guest", "new_guest", 2, "??? at night")
 
 	# The arcade works at night and brings you back to the night.
 	var spot: Dictionary = app.session.spot()
@@ -319,7 +319,7 @@ func first_night() -> void:
 	check(not town().actors.has("letter") and not town().actors.has("night_letter"), "no letter on the dock yet")
 	await shot("town_15_town_night")
 	await talk("welcome_banner", "welcome_banner", 0, "banner at night")
-	await talk("cellar_hatch", "cellar_hatch", 0, "hatch at night")
+	await talk("cellar_hatch", "cellar_hatch", 2, "hatch at night")
 
 	# The end of the dock.
 	var trig: Dictionary = town().map.triggers[0]
@@ -373,13 +373,149 @@ func first_night() -> void:
 	await go("room_1_exit")
 	await go("stairs_down")
 	check(town().actors.has("innkeeper"), "the innkeeper is back in the morning")
-	await talk("innkeeper", "innkeeper", 0, "innkeeper in the morning")
+	await talk("innkeeper", "innkeeper", 2, "innkeeper in the morning")
 	await go("lobby_front_door")
 	day_lighting("town in the morning")
 	check(town().actors.has("letter"), "the old letter is back")
 	check(not town().actors.has("night_letter") and not town().actors.has("ferry_silhouette"), "no ferry or night letter in the morning")
 	await talk("welcome_banner", "welcome_banner", 1, "banner in the morning")
 	await shot("town_19_town_morning")
+
+
+## Uses the cellar hatch after the night: "Go down" fades to the cellar.
+func go_down_hatch(entry: int) -> void:
+	var lines: Array = GameData.get_json("dialogue")["cellar_hatch"][entry]["lines"]
+	await use("cellar_hatch")
+	var box = town().dialogue_box
+	check(box.is_open(), "the hatch starts its dialogue")
+	eq(box.text.text, lines[0]["text"], "hatch line from data")
+	box.tap()
+	eq(box.next_btn.text, "Go down", "the button says Go down")
+	box.tap()
+	var seen: Dictionary = await wait_step()
+	check(seen["peak"] > 0.9, "the screen fades going down")
+	eq(seen["card"], "", "no card")
+	await frames(3)
+	check(not box.is_open(), "the dialogue is over")
+	var step: Dictionary = lines[0]["then"]
+	eq(town().map_id, step["go_to"], "Agador is in the cellar")
+	eq(town().player_cell, TownMap.cell_of(step["place"]), "at the data's place")
+	eq(town().player.facing, step["facing"], "facing from data")
+	eq(app.session.spot()["map"], "cellar", "the session knows")
+	eq(town().fade.color.a, 0.0, "the fade clears")
+
+
+## Walks down the passage onto the trigger and into the fight.
+func trigger_fight(label: String) -> Variant:
+	var trig: Dictionary = {}
+	for t in town().map.triggers:
+		trig = t
+	var cells: Array = TownMap.exit_cells_of(trig)
+	await tap_cell(Vector2i(4, 6) if town().map.is_walkable(Vector2i(4, 6)) else Vector2i(4, 4))
+	var box = town().dialogue_box
+	check(box.is_open(), "%s: walking down the passage starts the trigger" % label)
+	check(cells.has(town().player_cell), "%s: Agador stops on the trigger" % label)
+	eq(town().player.facing, trig.get("facing", ""), "%s: facing from data" % label)
+	var buttons: Array = []
+	eq(read_dialogue(label, buttons), data_lines("cellar_fight_trigger", 0), "%s: trigger line" % label)
+	eq(buttons[-1], "Fight", "%s: the button says Fight" % label)
+	await frames(3)
+	var fight = app.screen
+	eq(fight.get("encounter_id"), "cellar_rats", "%s: the cellar fight starts" % label)
+	check(fight.get("from_town") == true, "%s: launched from the world" % label)
+	check(not fight.hud.hero_row.visible, "%s: no hero tabs" % label)
+	check(fight.board.pixel, "%s: the world's pixel look" % label)
+	eq(fight.state.living("hero").size(), 1, "%s: Agador alone" % label)
+	return fight
+
+
+## The morning after: the cellar, the fight (a loss, then a win), the
+## luggage, ??? and the ribbon, the innkeeper, and the dock office.
+func cellar_flow() -> void:
+	eq(town().map_id, "town", "outside in the morning")
+	await go_down_hatch(1)
+	await shot("town_20_cellar")
+	check(town().actors.has("fallen_shelf"), "a fallen shelf blocks the luggage room")
+	check(town().actors.has("candle_rat"), "rats behind it")
+	for id in ["agador_suitcase", "ribbon_case"]:
+		check(not town().map.targets.has(id), "%s can't be used before the fight" % id)
+
+	# Lose: back by the stairs, no flag.
+	var fight = await trigger_fight("cellar fight")
+	await shot("town_21_cellar_fight")
+	await finish_fight(fight, false)
+	var lost: Dictionary = GameData.encounter("cellar_rats")["return"]["lost"]
+	eq(town().map_id, "cellar", "back in the cellar after a loss")
+	eq(town().player_cell, TownMap.cell_of(lost["cell"]), "by the stairs (data)")
+	check(not app.session.flags.has("won_cellar_fight"), "no win flag after a loss")
+	check(town().actors.has("fallen_shelf"), "the shelf still blocks the way")
+
+	# Retry and win: back in the passage, the way is clear.
+	fight = await trigger_fight("cellar retry")
+	await finish_fight(fight, true)
+	var won: Dictionary = GameData.encounter("cellar_rats")["return"]["won"]
+	eq(town().map_id, "cellar", "back in the cellar after the win")
+	eq(town().player_cell, TownMap.cell_of(won["cell"]), "in the passage (data)")
+	check(app.session.flags.has("won_cellar_fight"), "won_cellar_fight is set")
+	for id in ["fallen_shelf", "rat_1", "rat_2", "candle_rat"]:
+		check(not town().actors.has(id), "%s is gone after the win" % id)
+	# The trigger doesn't run again.
+	await tap_cell(Vector2i(4, 2))
+	await tap_cell(Vector2i(4, 4))
+	check(not town().dialogue_box.is_open(), "no fight after the win")
+
+	# The luggage.
+	await talk("humming_case", "humming_case", 0, "humming case")
+	check(town().actors["humming_case"].is_processing(), "the humming case animates")
+	await talk("blank_tags", "blank_tags", 0, "blank tags")
+	await talk("agador_suitcase", "agador_suitcase", 0, "Agador's suitcase")
+	check(app.session.flags.has("found_pell_name"), "the suitcase sets found_pell_name")
+	await talk("ribbon_case", "ribbon_case", 0, "ribbon case")
+	check(app.session.flags.has("found_ribbon"), "the ribbon case sets found_ribbon")
+	await shot("town_22_luggage")
+
+	# Up the stairs, beside the hatch; it still goes down.
+	await go("cellar_stairs")
+	check(town().map.can_use_from("cellar_hatch", town().player_cell), "back beside the hatch")
+	await go_down_hatch(0)
+	await go("cellar_stairs")
+
+	# The innkeeper and ???.
+	await go("inn_front_door")
+	await talk("innkeeper", "innkeeper", 0, "innkeeper about Pell")
+	await go("lounge_doorway")
+	await talk("new_guest", "new_guest", 1, "??? and the ribbon")
+	check(app.session.flags.has("gave_ribbon"), "gave_ribbon is set")
+	await talk("new_guest", "new_guest", 0, "??? afterwards")
+	await go("lobby_doorway")
+	await go("lobby_front_door")
+
+	# The dock office: the light goes out once.
+	check(town().actors.has("dock_office") and town().actors.has("dock_office_light"), "the dock office with its light on")
+	await shot("town_23_dock_office")
+	var lines: Array = GameData.get_json("dialogue")["dock_office_door"][1]["lines"]
+	await use("dock_office_door")
+	var box = town().dialogue_box
+	eq(box.text.text, lines[0]["text"], "Agador calls out")
+	box.tap()
+	box.tap()
+	check(box.busy, "the light starts fading")
+	var mid := 0
+	var dimmed := false
+	while box.busy and mid < 2000:
+		await frames(1)
+		if town().actors.has("dock_office_light"):
+			dimmed = dimmed or town().actors["dock_office_light"].modulate.a < 0.9
+			check(town().fade.color.a < 0.01, "the screen does not fade while the light does")
+		mid += 1
+	check(dimmed, "the window light fades")
+	check(not town().actors.has("dock_office_light"), "the light is out")
+	check(app.session.flags.has("saw_office_light_go_out"), "saw_office_light_go_out is set")
+	eq(box.text.text, lines[1]["text"], "Someone blew it out")
+	read_dialogue("dock office")
+	await shot("town_24_light_out")
+	await talk("dock_office_door", "dock_office_door", 0, "dock office afterwards")
+	check(not town().actors.has("dock_office_light"), "it stays out")
 
 
 func _raw_cell(map_id: String, thing_id: String) -> Array:
@@ -456,7 +592,7 @@ func run(t: SceneTree, shots: String) -> void:
 	eq(town().player_cell.y, hatch.y, "Agador stands beside the hatch, not in front of it")
 	check(town().actors["cellar_hatch"].is_processing(), "the hatch animates (humming)")
 	await shot("town_03_hatch")
-	eq(read_dialogue("hatch"), data_lines("cellar_hatch", 1), "hatch line")
+	eq(read_dialogue("hatch"), data_lines("cellar_hatch", 3), "hatch line")
 	await frames(3)
 	check(town() != null and town().has_method("tap_cell"), "the hatch does not start a fight")
 	# Taps on the map are ignored while a dialogue is open.
@@ -471,7 +607,7 @@ func run(t: SceneTree, shots: String) -> void:
 	eq(town().map_id, "lobby", "the inn door leads into the lobby")
 	check(not town().actors.has("new_guest") and not town().map.targets.has("new_guest"), "??? is not in the lobby before the Room 1 key")
 	await shot("town_04_lobby")
-	await talk("innkeeper", "innkeeper", 3, "innkeeper default")
+	await talk("innkeeper", "innkeeper", 5, "innkeeper default")
 	eq(town().actors["innkeeper"].facing, TownMap.facing_toward(town().map.cell_of_thing("innkeeper"), town().player_cell), "innkeeper turns to face the player")
 	await talk("guest_book", "guest_book", 2, "guest book before the letter")
 	await talk("key_board", "key_board", 0, "key board")
@@ -538,13 +674,13 @@ func run(t: SceneTree, shots: String) -> void:
 	await talk("letter", "letter", 0, "letter")
 	check(app.session.flags.has("read_letter"), "reading the letter sets read_letter")
 	await go("inn_front_door")
-	await talk("innkeeper", "innkeeper", 2, "innkeeper after the letter")
+	await talk("innkeeper", "innkeeper", 4, "innkeeper after the letter")
 	await talk("guest_book", "guest_book", 1, "guest book after the letter")
 	check(town().actors.has("new_guest") and not town().pacing.is_empty(), "??? is still pacing after Agador walked around them")
 
 	# --- The second guest's scene ----------------------------------------------------------
 	await guest_scene()
-	await talk("innkeeper", "innkeeper", 1, "innkeeper after the scene")
+	await talk("innkeeper", "innkeeper", 3, "innkeeper after the scene")
 	await talk("guest_book", "guest_book", 0, "guest book after the scene")
 	await talk("key_board", "key_board", 0, "key board unchanged after the scene")
 	await go("lounge_doorway")
@@ -554,7 +690,7 @@ func run(t: SceneTree, shots: String) -> void:
 	check(town().pacing.is_empty() and town().map.pacers.is_empty(), "??? no longer paces")
 	check(not town().map.targets["arcade"]["stand"].has(town().map.cell_of_thing("new_guest")), "??? does not stand where the arcade is used from")
 	await shot("town_12_lounge_guest")
-	await talk("new_guest", "new_guest", 1, "??? at the arcade")
+	await talk("new_guest", "new_guest", 3, "??? at the arcade")
 	await talk("fireplace", "fireplace", 0, "fireplace unchanged after the scene")
 	fight = await arcade_to_fight(0, "arcade after the scene")
 	await finish_fight(fight, true)
@@ -579,6 +715,9 @@ func run(t: SceneTree, shots: String) -> void:
 
 	# --- The first night ---------------------------------------------------------------
 	await first_night()
+
+	# --- The cellar, the ribbon and the dock office ---------------------------------
+	await cellar_flow()
 
 	# --- Long text fits the phone box -------------------------------------------
 	var longest := ""
@@ -622,6 +761,24 @@ func run(t: SceneTree, shots: String) -> void:
 	fight.hud.menu_btn.pressed.emit()
 	await frames(3)
 	check(app.screen.get("town_btn") != null, "Menu returns to the start screen")
+
+	# --- The Cellar test shortcut ------------------------------------------------
+	var sc_btns: Array = app.screen.shortcut_btns
+	eq(sc_btns.map(func(b): return b.text), ["Cellar test"], "the start screen offers Cellar test")
+	check(sc_btns[0].size.y * css >= 47.9, "Cellar test is a full-size button")
+	sc_btns[0].pressed.emit()
+	await fresh_town()
+	var sc: Dictionary = GameData.setting("shortcuts")[0]
+	eq(town().map_id, sc["map"], "Cellar test starts in the town")
+	eq(town().player_cell, TownMap.cell_of(sc["cell"]), "beside the hatch")
+	check(town().map.can_use_from("cellar_hatch", town().player_cell), "where the hatch can be used")
+	eq(app.session.flags.time_of_day(), "day", "in the day")
+	check(app.session.flags.has("first_night_over") and not app.session.flags.has("won_cellar_fight"), "after the night, before the fight")
+	day_lighting("Cellar test town")
+	await go_down_hatch(1)
+	fight = await trigger_fight("Cellar test fight")
+	await finish_fight(fight, false)
+	eq(town().map_id, "cellar", "Cellar test: a loss comes back to the cellar")
 
 	app.queue_free()
 	await frames()

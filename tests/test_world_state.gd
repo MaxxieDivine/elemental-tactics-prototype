@@ -2,6 +2,7 @@
 ## flags), pacing NPCs, and the second guest's story beats.
 extends "res://tests/test_base.gd"
 
+const WorldLinks = preload("res://tests/world_links.gd")
 const TownMap = preload("res://scripts/core/town_map.gd")
 const WorldState = preload("res://scripts/core/world_state.gd")
 const Pacer = preload("res://scripts/core/pacer.gd")
@@ -63,15 +64,7 @@ func _map_ids() -> Array:
 
 ## Every cell the player can arrive at on a map (the start, exit arrivals).
 func _arrivals(map_id: String) -> Array:
-	var out: Array = []
-	var start: Dictionary = GameSession.start_spot()
-	if start["map"] == map_id:
-		out.append(start["cell"])
-	for other in _map_ids():
-		for e in TownMap.map_def(other).get("exits", []):
-			if e["to"] == map_id:
-				out.append(TownMap.cell_of(e["arrive"]))
-	return out
+	return WorldLinks.arrivals(map_id)
 
 
 ## Every combination of the flags a map's states look at, at every time of

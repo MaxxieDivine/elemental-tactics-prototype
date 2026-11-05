@@ -509,9 +509,10 @@ func _on_dialogue_step(step: Dictionary) -> void:
 	dialogue_box.resume()
 
 
-## True when a step needs the screen to fade (a card, a new time, a move).
+## True when a step needs the screen to fade (a card, a new time, a move,
+## another map).
 static func step_fades_screen(step: Dictionary) -> bool:
-	return step.has("card") or step.has("set_time") or step.has("place")
+	return step.has("card") or step.has("set_time") or step.has("place") or step.has("go_to")
 
 
 func play_step(step: Dictionary) -> void:
@@ -531,13 +532,19 @@ func play_step(step: Dictionary) -> void:
 
 
 ## Fade out, card up, rebuild for the new time and flags with the player
-## at "place" (else where they stand), card down, fade in.
+## at "place" (else where they stand), on map "go_to" (else this one), card
+## down, fade in. Only a card uses the slower card fade.
 func _screen_step(step: Dictionary) -> void:
-	var half := maxf(fade_time, float(world.get("card_fade_time", fade_time)))
+	var half := maxf(fade_time, float(world.get("card_fade_time", fade_time))) if step.has("card") else fade_time * 0.5
 	await _tween_fade(1.0, half)
 	var text := str(step.get("card", ""))
 	var cell: Vector2i = TownMap.cell_of(step["place"]) if step.has("place") else player_cell
-	load_map(map_id, cell, str(step.get("facing", player.facing)))
+	var to := str(step.get("go_to", map_id))
+	if TownMap.map_def(to).is_empty():
+		push_warning("A dialogue step goes to missing map '%s'." % to)
+		to = map_id
+		cell = player_cell
+	load_map(to, cell, str(step.get("facing", player.facing)))
 	if text != "":
 		await show_card(text, float(step.get("card_time", card_time)))
 	await _tween_fade(0.0, half)

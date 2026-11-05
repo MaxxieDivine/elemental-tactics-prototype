@@ -4,6 +4,18 @@
 ##
 ## Event types: move, push, cast, damage, death, status, surface, terrain,
 ## explosion, flash, text, pause, phase, enemy_turn, game_over.
+##
+## Ability keys beyond the basics (all optional, all data):
+##   "uses": n           usable n times per fight
+##   "source_tile": name only next to a tile of that terrain type (the cellar
+##                       lantern); range counts from that tile, not the caster
+##   "target_surface": s only tiles with this surface can be aimed at
+##   "source_becomes": t the source tile turns into this terrain once used
+## Unit keys: "avoids" (surfaces it never walks onto by itself) and
+## "carries" (an element it brings onto any surface it enters: a candle
+## rat pushed into oil sets it alight). A reaction may have "flare": damage
+## to units next to (not on) a burning patch; "flare_burns" sets them alight;
+## a unit on a dousing surface (water) is safe from it.
 extends RefCounted
 
 const BattleState = preload("res://scripts/core/battle_state.gd")
@@ -56,6 +68,18 @@ static func ability_targets(state, u, ability_id: String) -> Array:
 	var ab := GameData.ability(ability_id)
 	var r := int(ab["range"])
 	var out: Array = []
+	if ab.has("source_tile"):
+		for src in source_cells(state, u, ability_id):
+			for y in state.height:
+				for x in state.width:
+					var c := Vector2i(x, y)
+					var d := BattleState.manhattan(src, c)
+					if d < 1 or d > r or _is_wall(state, c) or out.has(c) or c == u.cell:
+						continue
+					if ab.has("target_surface") and BattleState.SURFACE_NAMES[state.get_surface(c)] != str(ab["target_surface"]):
+						continue
+					out.append(c)
+		return out
 	if ab["shape"] == "line":
 		for dir in BattleState.DIRS:
 			for i in range(1, r + 1):
@@ -76,6 +100,30 @@ static func ability_targets(state, u, ability_id: String) -> Array:
 				continue
 			out.append(c)
 	return out
+
+
+## Tiles of the ability's "source_tile" type next to the unit ([] for
+## abilities without one).
+static func source_cells(state, u, ability_id: String) -> Array:
+	var ab := GameData.ability(ability_id)
+	if not ab.has("source_tile"):
+		return []
+	var t := BattleState.terrain_index(str(ab["source_tile"]))
+	var out: Array = []
+	for dir in BattleState.DIRS:
+		if state.in_bounds(u.cell + dir) and state.get_terrain(u.cell + dir) == t:
+			out.append(u.cell + dir)
+	return out
+
+
+## True when the unit can use the ability now: not acted, off cooldown, uses
+## left, and next to its source tile if it needs one.
+static func ability_available(state, u, ability_id: String) -> bool:
+	if not u.can_use(ability_id):
+		return false
+	if GameData.ability(ability_id).has("source_tile"):
+		return not ability_targets(state, u, ability_id).is_empty()
+	return true
 
 
 ## The tiles an ability's shape covers (before any chain reactions).
@@ -124,12 +172,21 @@ static func move_unit(state, u, dest: Vector2i) -> Array:
 
 static func use_ability(state, u, ability_id: String, target: Vector2i) -> Array:
 	var events: Array = []
-	if not u.can_use(ability_id) or not ability_targets(state, u, ability_id).has(target):
+	if not ability_available(state, u, ability_id) or not ability_targets(state, u, ability_id).has(target):
 		return events
 	var ab := GameData.ability(ability_id)
 	u.acted = true
 	if int(ab["cooldown"]) > 0:
 		u.cooldowns[ability_id] = int(ab["cooldown"]) + 1
+	if u.uses.has(ability_id):
+		u.uses[ability_id] = int(u.uses[ability_id]) - 1
+	if ab.has("source_becomes"):
+		for src in source_cells(state, u, ability_id):
+			if BattleState.manhattan(src, target) <= int(ab["range"]):
+				var t := BattleState.terrain_index(str(ab["source_becomes"]))
+				state.set_terrain(src, t)
+				events.append({"type": "terrain", "cell": src, "terrain": t})
+				break
 	perform_ability(state, u, ability_id, target, events)
 	_check_end(state, events)
 	return events
@@ -265,6 +322,7 @@ static func ignite_oil(state, start: Vector2i, r: Dictionary, events: Array) -> 
 		events.append({"type": "surface", "cell": c, "surface": NONE})
 	var dmg := int(r.get("damage", 0))
 	var barrels: Array = []
+	var edge: Array = []  # tiles next to the patch (for a flare)
 	for c in patch:
 		var u = state.unit_at(c)
 		if u != null:
@@ -275,6 +333,19 @@ static func ignite_oil(state, start: Vector2i, r: Dictionary, events: Array) -> 
 			var n: Vector2i = c + dir
 			if _explodes(state, n) and not barrels.has(n):
 				barrels.append(n)
+			elif state.in_bounds(n) and not patch.has(n) and not edge.has(n) and not _is_wall(state, n):
+				edge.append(n)
+	var flare := int(r.get("flare", 0))
+	if flare > 0:
+		# Flames lick the tiles around the patch; water stops them.
+		var hot: Array = edge.filter(func(n): return not state.surface_info(state.get_surface(n)).get("douses", false))
+		events.append({"type": "flash", "cells": hot, "element": "fire"})
+		for n in hot:
+			var u = state.unit_at(n)
+			if u != null:
+				damage_unit(state, u, flare, "fire", events)
+				if u.alive and r.get("flare_burns", false):
+					_set_burning(state, u, GameData.rule("burn_turns"), events)
 	for b in barrels:
 		explode_barrel(state, b, events)
 
@@ -284,7 +355,7 @@ static func ignite_oil(state, start: Vector2i, r: Dictionary, events: Array) -> 
 static func explode_barrel(state, c: Vector2i, events: Array) -> void:
 	if not _explodes(state, c):
 		return
-	var def := BattleState.terrain_def(state.get_terrain(c))
+	var def: Dictionary = state.tile_info(state.get_terrain(c))
 	state.set_terrain(c, FLOOR)
 	events.append({"type": "pause", "time": 0.2})
 	events.append({"type": "terrain", "cell": c, "terrain": FLOOR})
@@ -374,9 +445,12 @@ static func push_barrel(state, c: Vector2i, dir: Vector2i, dist: int, events: Ar
 
 
 static func _on_enter_cell(state, u, events: Array) -> void:
-	if u.burning > 0 and BattleState.surface_def(state.get_surface(u.cell)).get("douses", false):
+	if u.burning > 0 and state.surface_info(state.get_surface(u.cell)).get("douses", false):
 		_set_burning(state, u, 0, events)
 		events.append({"type": "text", "cell": u.cell, "text": "Doused", "element": "water"})
+	# A unit carrying an element (a candle) sets off the surface it lands on.
+	if u.carries != "" and u.alive and _reaction(state, u.carries, u.cell).has("chain"):
+		apply_element(state, u.cell, u.carries, 0, events)
 
 
 # =========================================================================
@@ -491,11 +565,11 @@ static func _check_end(state, events: Array) -> bool:
 
 
 static func _reaction(state, element: String, c: Vector2i) -> Dictionary:
-	return GameData.reaction(element, BattleState.SURFACE_NAMES[state.get_surface(c)])
+	return state.reaction(element, state.get_surface(c))
 
 
 static func _explodes(state, c: Vector2i) -> bool:
-	return state.in_bounds(c) and BattleState.terrain_def(state.get_terrain(c)).get("explodes", false)
+	return state.in_bounds(c) and state.tile_info(state.get_terrain(c)).get("explodes", false)
 
 
 ## Solid, non-exploding blockers (walls): never targetable, stop lines.

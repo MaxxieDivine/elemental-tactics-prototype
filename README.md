@@ -8,6 +8,8 @@ You have three heroes, one each for water, lightning and fire, on a 10x10 grid. 
 
 In front of that fight is a small **walkable world**. You play Agador: start on the dock, read a banner and your letter, find a locked cellar hatch humming against the inn wall, then go inside the inn. The lobby has the innkeeper, a guest book and a key board; the lounge has a fireplace and an arcade cabinet that has no business being there; upstairs, Room 1 is open and Rooms 2 to 4 are locked. Your letter changes what the innkeeper and the guest book say. The arcade's **Insert coin** starts the fight, and you come back beside the cabinet afterwards (win or lose). After a win the arcade shows a high score you never entered, and you can play again. Once you pick up the Room 1 key and come back downstairs, a distressed stranger, **???**, is pacing in front of the desk arguing with the innkeeper. Talk to them: a missing sister, a letter that should not be that old. Afterwards ??? waits by the arcade in the lounge, and the innkeeper, the guest book and the Room 2 door all have something new to say.
 
+Then comes **the first night**: sleep in Room 1, wake to a bell, watch the ferry vanish from the end of the dock, find a new letter, sleep again. **The morning after**, the padlock is gone from the cellar hatch. Tap it and **Go down**: a stone passage leads to a room of old luggage, blocked by a fallen shelf. Walking down the passage starts **the cellar fight** (Agador alone against rats). Lose, and you wake by the stairs to try again; win, and the shelf and rats are gone. The luggage has your own suitcase, two blank tags, a case with a ribbon, and a suitcase that hums. The suitcase or the ribbon case gives you **Dockmaster Pell**'s name (ask the innkeeper about it). Bring the ribbon to ??? in the lounge, then try the **dock office** by the dock: someone blows out the lamp.
+
 Everything is drawn with simple placeholder shapes and generated tiles. There's no final art, audio, saves or progression.
 
 ## Play it
@@ -18,7 +20,7 @@ Everything is drawn with simple placeholder shapes and generated tiles. There's 
 
 **In Godot:** install [Godot 4.3+](https://godotengine.org/download) (standard build, no .NET needed). In the Project Manager, choose **Import**, select `project.godot`, and press **F5**.
 
-The start screen has two buttons: **Town** (the walkable slice) and **Fight** (the fight on its own, for testing).
+The start screen has **Town** (the walkable slice), **Fight** (the arcade fight on its own, for testing) and **Cellar test**: a fresh story the morning after the first night, standing beside the cellar hatch, so you can try the cellar without replaying the night. Shortcut buttons come from `data/settings.json` (`shortcuts`; set `"enabled": false` to hide one).
 
 ## Town controls
 
@@ -53,6 +55,17 @@ The same controls work for mouse and touch: **tap (or click) to select, then tap
 
 Each hero can **move once and act once per turn, in either order**. On desktop there are optional shortcuts: `1`-`3` select a hero, `Q` `W` `E` pick an ability, `Enter` confirms, `Esc` cancels, `X` waits, `Z` undoes, `Space` ends the turn, `I` toggles info, `R` restarts, and `F` toggles speed.
 
+## The cellar fight
+
+Agador fights alone on a 7 x 9 board in the world's pixel style (48 CSS px tiles, art at 3x). There are no hero tabs: his three abilities sit right under the board.
+
+- **Punch**: 2 damage to an adjacent enemy.
+- **Kick**: 1 damage and pushes the enemy one tile away (2 more if it slams into something).
+- **Knock over**: only next to the lantern, once per fight. Tips it onto an oil tile beside it.
+- **Oil** burns all at once when fire touches it: 2 damage and burning to anyone on it, and in the cellar the flames also **scorch anyone right next to the patch** (2 damage and burning), except someone standing in water. That includes Agador.
+- **Rats** never walk onto oil by themselves, so they come around its edges. The **candle rat** carries a flame: push it onto oil and the oil goes up.
+- The plan: wait by the lantern until rats line the oil, then knock it over, or kick the candle rat into the oil. Punching your way through works only if you keep stepping out of the bites; walk up and trade punches and the rats win.
+
 ## How the fight works
 
 - **Turn order:** in each round, your heroes act in any order, then the enemies act in the numbered order shown. The info panel lists it.
@@ -78,6 +91,15 @@ Each hero can **move once and act once per turn, in either order**. On desktop t
 - **Art:** `data/assets.json` maps keys (`agador.portrait.neutral`, `town.tiles`, `inn.arcade`, ...) to files. Drop a PNG in `art/` and point its key at it. See `art/README.md` for formats. Missing files show a placeholder and log a warning.
 - **Debug:** `data/settings.json` `debug_tile_text: true` shows raw tile text such as `Tile 5,6: floor` in the fight's info panel.
 
+### Cellar, dock office and the cellar fight (no code changes)
+
+- **Cellar map:** `data/maps/cellar.json`: rows (cellar tiles `,` floor, `X` rock, `H` wall, `T` stairs, in `data/town.json`), the fallen shelf and rats (hidden by a `won_cellar_fight` state), the luggage (usable only after the win, by a state), shelves and lamps, the stairs exit back beside the hatch, and the `cellar_fight_trigger` across the passage.
+- **Going down:** the hatch's dialogue in `data/dialogue.json`: a line's `"then": {"go_to": "cellar", "place": [x, y], "facing": "down"}` moves Agador to another map after that line.
+- **Where a fight sends you back:** the encounter's `"return": {"won": {...}, "lost": {...}}` in `data/encounters.json`.
+- **Dock office:** three objects in `data/maps/town.json`: `dock_office` (the building: `cell` is its front-middle tile, `footprint` the other cells it blocks), `dock_office_door` and `dock_office_light` (hidden once `saw_office_light_go_out` is set; the door's dialogue fades it out). Move all three to move the office.
+- **The cellar fight:** `cellar_rats` in `data/encounters.json`: `map` + `legend`, `objects` (the lantern), `party`, `enemies` (rat positions), `seed`, `terrain` (overrides for this fight only: the oil's `flare` damage), `presentation` (tile size, board tile art keys and placeholder patterns), `return`. Rat stats in `enemies.json` (`hp`, `move`, `attack`, `avoids`, `carries`), Agador in `heroes.json` (his name, colour and sprite come from `characters.json`), Punch / Kick / Knock over / Bite in `abilities.json` (`uses`, `source_tile`, `target_surface`, `source_becomes`), the lantern tile in `terrain.json`.
+- **Cellar look:** the `cellar` lighting preset in `data/town.json`.
+
 ### Fight
 
 All numbers and the map live in `data/`:
@@ -86,7 +108,7 @@ All numbers and the map live in `data/`:
 - `abilities.json`: damage, range, shape, line of sight, push, and cooldown
 - `rules.json`: burn damage and duration, steam duration, oil and barrel damage, collision damage
 - `terrain.json`: what tiles and surfaces do, and the element reactions (fire + water -> steam, fire + oil -> ignite, ...)
-- `encounters.json`: the map (`.` floor, `#` wall, `o` oil, `w` water, `B` barrel), spawn points, and the RNG seed
+- `encounters.json`: the map (`.` floor, `#` wall, `o` oil, `w` water, `B` barrel), spawn points, and the RNG seed; optionally objects, terrain overrides, a presentation and return spots (see the cellar above)
 
 Optional art: put `art/<sprite key>.png` next to the project (keys are in the data files). Missing art falls back to simple shapes.
 
@@ -95,7 +117,7 @@ Optional art: put `art/<sprite key>.png` next to the project (keys are in the da
 ```sh
 godot --headless --path . --script res://tests/run_tests.gd
 ```
-This runs every rules, story, map, asset and UI-text test, a UI smoke test that taps through the fight in a phone layout and a desktop layout, and a flow test that plays the real app on a phone: town, every inn room, every interaction, the arcade fight (loss, win, replay) and back beside the arcade, the letter changing the innkeeper and guest book, and the direct Fight option. It exits non-zero on failure. With a display (for example `xvfb-run`), add `-- --shots=<dir>` to save screenshots.
+This runs every rules, story, map, asset and UI-text test (including a headless player that wins the cellar fight), a UI smoke test that taps through the arcade fight and the solo cellar fight in phone and desktop layouts, and a flow test that plays the real app on a phone: town, every inn room, every interaction, the arcade fight (loss, win, replay) and back beside the arcade, the letter changing the innkeeper and guest book, the second guest, the first night, the cellar (a loss, a retry, a win, the luggage), ??? and the ribbon, the innkeeper, the dock office light, the direct Fight option and the Cellar test button. It exits non-zero on failure. With a display (for example `xvfb-run`), add `-- --shots=<dir>` to save screenshots.
 
 ## Web build and deployment
 
@@ -103,4 +125,4 @@ This runs every rules, story, map, asset and UI-text test, a UI smoke test that 
 
 ## Status
 
-Milestone 3: the town and five connected spaces (town, lobby, lounge, upstairs hallway, Room 1) built from data, with the fight launched from an in-world arcade cabinet, on desktop and phone browsers. Scope is intentionally tiny: no cellar interior, other room interiors, saves, inventory, branching choices, quest log, party following, final art or audio.
+Milestone 6: the town, the inn, the first night and the cellar, all built from data, with the arcade fight and a solo cellar fight, on desktop and phone browsers. Scope is intentionally tiny: no Pell, dock office interior, other room interiors, saves, inventory, branching choices, quest log, party following, final art or audio.

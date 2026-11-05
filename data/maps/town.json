@@ -44,7 +44,20 @@
       "states": [
         { "requires": ["first_night_started"], "unless": ["saw_ferry", "first_night_over"], "time_of_day": "night", "hidden": false }
       ] },
-    { "id": "cellar_hatch",   "name": "Cellar hatch",   "sprite": "town.cellar_hatch",   "shape": "hatch",  "color": "#6b4a2b", "cell": [9, 4],  "interaction": "cellar_hatch", "stand": [[8, 4], [10, 4]] }
+    { "id": "cellar_hatch",   "name": "Cellar hatch",   "sprite": "town.cellar_hatch",   "shape": "hatch",  "color": "#6b4a2b", "cell": [9, 4],  "interaction": "cellar_hatch", "stand": [[8, 4], [10, 4]],
+      "_comment": "The padlock is gone the morning after the first night; its dialogue then takes Agador down to the cellar.",
+      "states": [
+        { "requires": ["first_night_over"], "sprite": "town.cellar_hatch_open", "shape": "hatch_unlocked" }
+      ] },
+
+    { "id": "dock_office",       "name": "Dock office", "sprite": "town.dock_office",       "shape": "dock_office",  "color": "#7a5236", "cell": [2, 10], "footprint": [[-1, -1], [0, -1], [1, -1]],
+      "_comment": "A small building by the dock: drawn from its front-middle cell, three tiles wide and two deep. 'footprint' lists the other cells it blocks (relative to 'cell'); its door and window are their own objects on the front row. Move all three together." },
+    { "id": "dock_office_door",  "name": "Dock office door", "sprite": "town.dock_office_door", "shape": "office_door", "color": "#5e3c22", "cell": [3, 10], "interaction": "dock_office_door", "stand": [[3, 11], [4, 10]] },
+    { "id": "dock_office_light", "name": "Office window",    "sprite": "town.dock_office_light", "shape": "office_window", "color": "#ffcf7a", "cell": [1, 10], "glow": "office_window",
+      "_comment": "A warm light in the window, until someone blows it out (the door's dialogue fades it, then this state keeps it out).",
+      "states": [
+        { "requires": ["saw_office_light_go_out"], "hidden": true }
+      ] }
   ],
 
   "props": [

@@ -1,4 +1,6 @@
 {
   "brute":   { "name": "Brute",   "sprite": "enemy_brute",   "color": "#c0392b", "shape": "square",  "hp": 6, "move": 3, "attack": "smash" },
-  "spitter": { "name": "Spitter", "sprite": "enemy_spitter", "color": "#9b59b6", "shape": "diamond", "hp": 4, "move": 2, "attack": "fire_spit" }
+  "spitter": { "name": "Spitter", "sprite": "enemy_spitter", "color": "#9b59b6", "shape": "diamond", "hp": 4, "move": 2, "attack": "fire_spit" },
+  "rat":        { "name": "Rat",        "sprite": "cellar.rat",        "color": "#9a8a80", "shape": "rat",        "hp": 4, "move": 3, "attack": "bite", "avoids": ["oil"] },
+  "candle_rat": { "name": "Candle rat", "sprite": "cellar.candle_rat", "color": "#d9a05a", "shape": "candle_rat", "hp": 4, "move": 3, "attack": "bite", "avoids": ["oil"], "carries": "fire" }
 }

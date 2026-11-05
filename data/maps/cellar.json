@@ -1,0 +1,64 @@
+{
+  "_comment": "Under the inn. Entrance to back: the stairs up (T), a short stone passage, then the luggage room with tall shelves. The hatch's dialogue brings Agador down to (4, 2); the stairs take him back beside the hatch. Until won_cellar_fight a fallen shelf blocks the doorway, the rats show behind it and the luggage can't be used yet; the passage trigger starts the fight. cellar_rats' 'return' in encounters.json says where Agador stands after a win (the passage) or a loss (by the stairs).",
+  "name": "Cellar",
+  "lighting": "cellar",
+  "map": [
+    "XXXXXXXXX",
+    "XXXHTHXXX",
+    "XXX,,,XXX",
+    "XXX,,,XXX",
+    "XXX,,,XXX",
+    "XXXX,XXXX",
+    "XHHH,HHHX",
+    "X,,,,,,,X",
+    "X,,,,,,,X",
+    "X,,,,,,,X",
+    "X,,,,,,,X",
+    "XXXXXXXXX"
+  ],
+
+  "npcs": [],
+
+  "objects": [
+    { "id": "fallen_shelf", "name": "Fallen shelf", "sprite": "cellar.fallen_shelf", "shape": "fallen_shelf", "color": "#5a3a24", "cell": [4, 6],
+      "_comment": "Blocks the luggage room until the rats are dealt with.",
+      "states": [ { "requires": ["won_cellar_fight"], "hidden": true } ] },
+    { "id": "rat_1", "name": "Rat", "sprite": "cellar.rat", "shape": "rat", "color": "#9a8a80", "cell": [3, 8],
+      "states": [ { "requires": ["won_cellar_fight"], "hidden": true } ] },
+    { "id": "rat_2", "name": "Rat", "sprite": "cellar.rat", "shape": "rat", "color": "#9a8a80", "cell": [6, 9],
+      "states": [ { "requires": ["won_cellar_fight"], "hidden": true } ] },
+    { "id": "candle_rat", "name": "Candle rat", "sprite": "cellar.candle_rat", "shape": "candle_rat", "color": "#d9a05a", "cell": [5, 8], "glow": "candle",
+      "states": [ { "requires": ["won_cellar_fight"], "hidden": true } ] },
+
+    { "id": "agador_suitcase", "name": "Suitcase", "sprite": "cellar.agador_suitcase", "shape": "suitcase", "color": "#3f8f80", "cell": [2, 9], "interaction": "agador_suitcase",
+      "states": [ { "unless": ["won_cellar_fight"], "interaction": "" } ] },
+    { "id": "blank_tags", "name": "Blank tags", "sprite": "cellar.blank_tags", "shape": "blank_tags", "color": "#8a6a44", "cell": [3, 10], "interaction": "blank_tags",
+      "states": [ { "unless": ["won_cellar_fight"], "interaction": "" } ] },
+    { "id": "ribbon_case", "name": "Ribbon case", "sprite": "cellar.ribbon_case", "shape": "ribbon_case", "color": "#c9b48a", "cell": [5, 10], "interaction": "ribbon_case",
+      "states": [ { "unless": ["won_cellar_fight"], "interaction": "" } ] },
+    { "id": "humming_case", "name": "Humming case", "sprite": "cellar.humming_case", "shape": "humming_case", "color": "#4a3a6a", "cell": [7, 9], "interaction": "humming_case", "glow": "hum",
+      "states": [ { "unless": ["won_cellar_fight"], "interaction": "" } ] }
+  ],
+
+  "props": [
+    { "sprite": "cellar.lamp",  "shape": "lantern", "glow": "cellar_lamp", "color": "#f2b84b", "cell": [3, 1] },
+    { "sprite": "cellar.lamp",  "shape": "lantern", "glow": "cellar_lamp", "color": "#f2b84b", "cell": [2, 6] },
+    { "sprite": "cellar.lamp",  "shape": "lantern", "glow": "cellar_lamp", "color": "#f2b84b", "cell": [6, 6] },
+    { "sprite": "cellar.shelf", "shape": "tall_shelf", "color": "#6b4428", "cell": [1, 7] },
+    { "sprite": "cellar.shelf", "shape": "tall_shelf", "color": "#6b4428", "cell": [2, 7] },
+    { "sprite": "cellar.shelf", "shape": "tall_shelf", "color": "#6b4428", "cell": [6, 7] },
+    { "sprite": "cellar.shelf", "shape": "tall_shelf", "color": "#6b4428", "cell": [7, 7] },
+    { "sprite": "cellar.luggage", "shape": "luggage_pile", "color": "#7a5a3a", "cell": [1, 10] },
+    { "sprite": "cellar.luggage", "shape": "luggage_pile", "color": "#5a6a7a", "cell": [7, 10] }
+  ],
+
+  "exits": [
+    { "id": "cellar_stairs", "name": "Stairs up", "cell": [4, 1], "to": "town", "arrive": [8, 4], "facing": "right" }
+  ],
+
+  "triggers": [
+    { "id": "cellar_fight_trigger", "cells": [[3, 3], [4, 3], [5, 3]], "interaction": "cellar_fight_trigger", "facing": "down",
+      "requires": ["first_night_over"], "unless": ["won_cellar_fight"],
+      "_comment": "Across the passage: walking down it starts the fight. Not 'once': after a loss Agador is put back by the stairs and can walk through it again." }
+  ]
+}

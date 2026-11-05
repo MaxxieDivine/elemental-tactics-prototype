@@ -37,11 +37,16 @@
     "U": { "name": "stairs up",  "walkable": false, "atlas": [6, 2], "color": "#8a5a32", "pattern": "stairs_up" },
     "S": { "name": "stairs down","walkable": false, "atlas": [7, 2], "color": "#8a5a32", "pattern": "stairs_down" },
     "d": { "name": "doorway",    "walkable": false, "atlas": [0, 3], "color": "#4a2e22", "pattern": "doorway" },
-    "v": { "name": "front door", "walkable": false, "atlas": [1, 3], "color": "#4a2e22", "pattern": "threshold" }
+    "v": { "name": "front door", "walkable": false, "atlas": [1, 3], "color": "#4a2e22", "pattern": "threshold" },
+
+    ",": { "name": "cellar floor", "walkable": true,  "atlas": [0, 4], "color": "#7a7066", "pattern": "flagstone" },
+    "X": { "name": "cellar rock",  "walkable": false, "atlas": [1, 4], "color": "#2b2522", "pattern": "cellar_top" },
+    "H": { "name": "cellar wall",  "walkable": false, "atlas": [2, 4], "color": "#5b5048", "pattern": "cellar_wall" },
+    "T": { "name": "cellar stairs","walkable": false, "atlas": [3, 4], "color": "#7a6450", "pattern": "cellar_stairs" }
   },
 
   "lighting_presets": {
-    "_comment": "Night outside is deep blue with warm pools at lamps, inn windows and the door; the dock and anything you can tap stay bright. The inn at night is only slightly dimmer and warmer, with dark window panes. Day: no change.",
+    "_comment": "Night outside is deep blue with warm pools at lamps, inn windows and the door; the dock and anything you can tap stay bright. The inn at night is only slightly dimmer and warmer, with dark window panes. Day: no change. The cellar looks the same day and night: dim warm brown with stepped lamp pools; its floor stays lighter than the walls so the way through reads on a phone, anything you can tap stays bright, and the humming case glows faintly violet.",
     "outdoor": {
       "day": {},
       "night": {
@@ -56,7 +61,36 @@
           "window": [ { "rect": [5, 5, 6, 6], "blend": "mix", "color": "#ffd27a", "strength": 0.95 },
                       { "offset": [8, 15], "radius": 12, "steps": 4, "color": "#ffb85c", "strength": 0.22 } ],
           "door":   [ { "offset": [8, 17], "radius": 16, "steps": 4, "color": "#ffc070", "strength": 0.3 } ],
-          "ferry_lantern": [ { "offset": [5, -17], "radius": 9, "steps": 3, "color": "#ffcf7a", "strength": 0.4 } ]
+          "ferry_lantern": [ { "offset": [5, -17], "radius": 9, "steps": 3, "color": "#ffcf7a", "strength": 0.4 } ],
+          "office_window": [ { "offset": [0, -6], "radius": 14, "steps": 4, "color": "#ffb85c", "strength": 0.3 } ]
+        }
+      }
+    },
+    "cellar": {
+      "day": {
+        "tint": "#8c7c6e",
+        "tile_tints": { ",": "#a89888", "X": "#5a4e46" },
+        "prop_tint": "#9a8a7c",
+        "actor_tint": "#f4ebe2",
+        "lit_tint": "#ffffff",
+        "glows": {
+          "cellar_lamp": [ { "offset": [0, -9], "radius": 10, "steps": 3, "color": "#ffd27a", "strength": 0.35 },
+                           { "offset": [0, 8], "radius": 34, "steps": 5, "color": "#ffb05c", "strength": 0.3 } ],
+          "hum":         [ { "offset": [0, -5], "radius": 13, "steps": 3, "color": "#b48cff", "strength": 0.25 }  ],
+          "candle":      [ { "offset": [3, -11], "radius": 8, "steps": 3, "color": "#ffcf7a", "strength": 0.35 } ]
+        }
+      },
+      "night": {
+        "tint": "#8c7c6e",
+        "tile_tints": { ",": "#a89888", "X": "#5a4e46" },
+        "prop_tint": "#9a8a7c",
+        "actor_tint": "#f4ebe2",
+        "lit_tint": "#ffffff",
+        "glows": {
+          "cellar_lamp": [ { "offset": [0, -9], "radius": 10, "steps": 3, "color": "#ffd27a", "strength": 0.35 },
+                           { "offset": [0, 8], "radius": 34, "steps": 5, "color": "#ffb05c", "strength": 0.3 } ],
+          "hum":         [ { "offset": [0, -5], "radius": 13, "steps": 3, "color": "#b48cff", "strength": 0.25 }  ],
+          "candle":      [ { "offset": [3, -11], "radius": 8, "steps": 3, "color": "#ffcf7a", "strength": 0.35 } ]
         }
       }
     },

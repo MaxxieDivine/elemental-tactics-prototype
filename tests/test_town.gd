@@ -1,6 +1,7 @@
 ## Town grid: walkability, paths, and finding a tile next to a target.
 extends "res://tests/test_base.gd"
 
+const WorldLinks = preload("res://tests/world_links.gd")
 const TownMap = preload("res://scripts/core/town_map.gd")
 const GameSession = preload("res://scripts/core/game_session.gd")
 const Dialogue = preload("res://scripts/core/dialogue.gd")
@@ -78,15 +79,7 @@ func _map_ids() -> Array:
 
 ## Every cell the player can arrive at on a map (the start, exit arrivals).
 func _arrivals(map_id: String) -> Array:
-	var out: Array = []
-	var start: Dictionary = GameSession.start_spot()
-	if start["map"] == map_id:
-		out.append(start["cell"])
-	for other in _map_ids():
-		for e in TownMap.map_def(other).get("exits", []):
-			if e["to"] == map_id:
-				out.append(TownMap.cell_of(e["arrive"]))
-	return out
+	return WorldLinks.arrivals(map_id)
 
 
 func test_inn_maps_exist() -> void:
@@ -122,22 +115,17 @@ func test_every_exit_leads_to_a_walkable_arrival_with_a_facing() -> void:
 				continue
 			check(to.is_walkable(a["cell"]), "%s: exit %s arrives on a free walkable tile" % [id, e["id"]])
 			check(a["facing"] in ["up", "down", "left", "right"], "%s: exit %s has a facing" % [id, e["id"]])
-			# Every exit has a way back from where it arrives.
+			# Every exit has a way back from where it arrives (an exit, or a
+			# dialogue step such as the cellar hatch's "Go down").
 			var back := false
-			for e2 in TownMap.map_def(a["map"]).get("exits", []):
-				back = back or e2["to"] == id
+			for l in WorldLinks.links_from(a["map"]):
+				back = back or l["map"] == id
 			check(back, "%s: %s's map %s leads back here" % [id, e["id"], a["map"]])
 
 
 func test_every_map_is_reachable_through_exits() -> void:
-	var seen := {GameSession.start_spot()["map"]: true}
-	var queue: Array = seen.keys()
-	while not queue.is_empty():
-		var id: String = queue.pop_front()
-		for e in TownMap.map_def(id).get("exits", []):
-			if not seen.has(e["to"]):
-				seen[e["to"]] = true
-				queue.append(e["to"])
+	# Exits, and dialogue steps that change the map (the cellar hatch).
+	var seen: Dictionary = WorldLinks.reachable_maps()
 	for id in _map_ids():
 		check(seen.has(id), "map %s is reachable from the start" % id)
 

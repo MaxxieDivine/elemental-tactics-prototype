@@ -31,7 +31,16 @@ func show_menu() -> void:
 	var m = StartMenu.new()
 	m.town_pressed.connect(show_town, CONNECT_DEFERRED)
 	m.fight_pressed.connect(start_direct_fight, CONNECT_DEFERRED)
+	m.shortcut_pressed.connect(start_shortcut, CONNECT_DEFERRED)
 	_swap(m)
+
+
+## A start-screen shortcut: a fresh story with the shortcut's flags, time
+## and spot (data/settings.json), then the town.
+func start_shortcut(sc: Dictionary) -> void:
+	session = GameSession.from_shortcut(sc)
+	GameSession.current = session
+	show_town()
 
 
 func show_town() -> void:

@@ -1,8 +1,23 @@
 {
-  "_comment": "Interaction id -> entries. Entries are checked top to bottom: the first entry whose 'requires' flags are all set (and whose 'unless' flags are all unset) plays. Optional on finish: 'set_flags', 'start_fight' (encounter id) with 'win_flags'. A line may set 'portrait' to another asset key, and 'button' to the label of its action button (else the _buttons defaults: 'next' on a middle line, 'close' on the last, 'skip' while typing). An entry may also require a 'time_of_day' ('night'). A line's 'then' plays after it, before the next line: 'set_flags', 'set_time' ('day'/'night'), 'card' (text over a fade, 'card_time' seconds), 'place' [x, y] + 'facing' (where Agador stands after the fade), 'fade_out' / 'fade_in' (world object ids, 'fade_time' seconds).",
+  "_comment": "Interaction id -> entries. Entries are checked top to bottom: the first entry whose 'requires' flags are all set (and whose 'unless' flags are all unset) plays. Optional on finish: 'set_flags', 'start_fight' (encounter id) with 'win_flags'. A line may set 'portrait' to another asset key, and 'button' to the label of its action button (else the _buttons defaults: 'next' on a middle line, 'close' on the last, 'skip' while typing). An entry may also require a 'time_of_day' ('night'). A line's 'then' plays after it, before the next line: 'set_flags', 'set_time' ('day'/'night'), 'card' (text over a fade, 'card_time' seconds), 'place' [x, y] + 'facing' (where Agador stands after the fade), 'go_to' (a map id: with 'place', Agador goes to that map), 'fade_out' / 'fade_in' (world object ids, 'fade_time' seconds).",
   "_buttons": { "next": "Next", "close": "Close", "skip": "Skip" },
 
   "innkeeper": [
+    {
+      "requires": ["found_pell_name"],
+      "lines": [
+        { "speaker": "agador",    "text": "Who's Dockmaster Pell?" },
+        { "speaker": "innkeeper", "text": "Pell? Oh, you don't want to bother Pell on a Tuesday." },
+        { "speaker": "agador",    "text": "It's Wednesday." },
+        { "speaker": "innkeeper", "text": "Is it?" }
+      ]
+    },
+    {
+      "requires": ["won_cellar_fight"],
+      "lines": [
+        { "speaker": "innkeeper", "text": "Find everything all right, dear? You've got a little rat on you." }
+      ]
+    },
     {
       "requires": ["first_night_over"],
       "lines": [
@@ -62,6 +77,20 @@
   ],
 
   "cellar_hatch": [
+    {
+      "requires": ["won_cellar_fight"],
+      "lines": [
+        { "speaker": "agador", "text": "It's still humming.", "button": "Go down",
+          "then": { "go_to": "cellar", "place": [4, 2], "facing": "down" } }
+      ]
+    },
+    {
+      "requires": ["first_night_over"],
+      "lines": [
+        { "speaker": "agador", "text": "The lock's gone. It wasn't like that last night.", "button": "Go down",
+          "then": { "go_to": "cellar", "place": [4, 2], "facing": "down" } }
+      ]
+    },
     {
       "time_of_day": "night",
       "lines": [
@@ -188,6 +217,22 @@
 
   "new_guest": [
     {
+      "requires": ["gave_ribbon"],
+      "lines": [
+        { "speaker": "new_guest", "text": "The dock office. Someone has to be there." }
+      ]
+    },
+    {
+      "requires": ["found_ribbon"],
+      "lines": [
+        { "speaker": "agador",    "text": "I found this in the cellar, tied to an old suitcase." },
+        { "speaker": "new_guest", "text": "This was hers. Where did you find it?" },
+        { "speaker": "agador",    "text": "There's a room full of them. Dockmaster Pell signed for every one." },
+        { "speaker": "new_guest", "text": "Then Pell knows where she went." }
+      ],
+      "set_flags": ["gave_ribbon"]
+    },
+    {
       "requires": ["first_night_started"], "unless": ["first_night_over"], "time_of_day": "night",
       "lines": [
         { "speaker": "agador",    "text": "Did you hear that bell?" },
@@ -249,6 +294,82 @@
         { "speaker": "agador", "text": "'See you Tuesday.'" }
       ],
       "set_flags": ["read_night_letter"]
+    }
+  ],
+
+  "cellar_fight_trigger": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "Something's moving behind the shelves.", "button": "Fight" }
+      ],
+      "start_fight": "cellar_rats",
+      "win_flags": ["won_cellar_fight"]
+    }
+  ],
+
+  "agador_suitcase": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "That's my suitcase. I never gave it to anyone." },
+        { "speaker": "agador", "text": "'Hold for the Tuesday ferry.' They all say that." },
+        { "speaker": "agador", "text": "Received by Dockmaster Pell. Same signature on every tag." }
+      ],
+      "set_flags": ["found_pell_name"]
+    }
+  ],
+
+  "blank_tags": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "Two blank tags, ready to go. Someone's expecting more guests." }
+      ]
+    }
+  ],
+
+  "ribbon_case": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "Eleven years ago. Received by Dockmaster Pell." },
+        { "speaker": "agador", "text": "Someone tied a ribbon on this one. I know who should see it." }
+      ],
+      "set_flags": ["found_pell_name", "found_ribbon"]
+    }
+  ],
+
+  "humming_case": [
+    {
+      "lines": [
+        { "speaker": "agador", "text": "So that's what's humming. A suitcase." },
+        { "speaker": "agador", "text": "Locked. Of course it's locked." }
+      ]
+    }
+  ],
+
+  "dock_office_door": [
+    {
+      "requires": ["saw_office_light_go_out"],
+      "lines": [
+        { "speaker": "agador", "text": "Nobody's home. Very obviously nobody." }
+      ]
+    },
+    {
+      "requires": ["gave_ribbon"],
+      "lines": [
+        { "speaker": "agador", "text": "Hello? Dockmaster Pell?",
+          "then": { "fade_out": ["dock_office_light"], "set_flags": ["saw_office_light_go_out"] } },
+        { "speaker": "agador", "text": "Someone just blew out the lamp." }
+      ]
+    },
+    {
+      "requires": ["found_pell_name"],
+      "lines": [
+        { "speaker": "agador", "text": "Locked. There's a light on inside." }
+      ]
+    },
+    {
+      "lines": [
+        { "speaker": "agador", "text": "Dock office. Closed until the ferry gets back." }
+      ]
     }
   ]
 }

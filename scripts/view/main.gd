@@ -57,7 +57,17 @@ func _ready() -> void:
 	hud.over_btn.text = "Back to town" if from_town else "Play again"
 	hud.menu_btn.visible = not from_town
 	hud.menu_btn.pressed.connect(func(): menu_requested.emit())
+	_apply_presentation()
 	restart()
+
+
+## Board size, tile size, party size and look, all from the encounter's data.
+func _apply_presentation() -> void:
+	var enc: Dictionary = GameData.encounter(encounter_id)
+	var pres: Dictionary = enc.get("presentation", {})
+	var party: Array = enc.get("party", enc.get("heroes", []))
+	board.set_presentation(pres)
+	hud.configure(enc["map"][0].length(), enc["map"].size(), float(pres.get("tile_css", 0)), party.size() == 1)
 
 
 func _on_over_pressed() -> void:
@@ -198,7 +208,7 @@ func select_ability(slot: int) -> void:
 	var id: String = u.abilities[slot]
 	if mode == "target" and ability_id == id:
 		mode = "move"
-	elif u.can_use(id):
+	elif Rules.ability_available(state, u, id):
 		mode = "target"
 		ability_id = id
 	pending = NO_CELL
@@ -318,7 +328,7 @@ func _send(cmd: Dictionary) -> void:
 func _after_action() -> void:
 	board.set_state(state)
 	var u = _selected()
-	if u == null or u.is_done():
+	if (u == null or u.is_done()) and not (_solo() and u != null):
 		selected_id = -1
 		for h in _heroes():
 			if h.alive and not h.is_done():
@@ -401,9 +411,12 @@ func _prompt(u) -> String:
 	elif info_mode:
 		p = "Info mode: tap any tile for details. Tap Info again to exit."
 	elif end_armed:
-		p = "Some heroes can still act. Tap End Turn again to end anyway."
+		p = ("%s can still act." % _heroes()[0].name if _solo() else "Some heroes can still act.") + " Tap End Turn again to end anyway."
 	elif u == null:
-		p = "All heroes are done. Tap End Turn." if _heroes().all(func(h): return not h.alive or h.is_done()) else "Tap a hero to select it."
+		if _heroes().all(func(h): return not h.alive or h.is_done()):
+			p = ("%s is done." % _heroes()[0].name if _solo() else "All heroes are done.") + " Tap End Turn."
+		else:
+			p = "Tap a hero to select it."
 	elif mode == "target" and pending != NO_CELL:
 		p = "Tap the same tile again to use %s." % GameData.ability(ability_id)["name"]
 	elif mode == "target":
@@ -411,6 +424,8 @@ func _prompt(u) -> String:
 		p = "%s: tap a yellow tile to aim. %s" % [ab["name"], ab["desc"]]
 	elif pending != NO_CELL:
 		p = "Tap the same tile again to move there."
+	elif u.is_done():
+		p = "%s is done. Tap End Turn." % u.name
 	elif not u.moved:
 		p = "%s: tap a blue tile to move, or pick an ability." % u.name
 	elif not u.acted:
@@ -476,12 +491,16 @@ func _describe_tile(c: Vector2i) -> String:
 ## unit); raw text such as "Tile 5,6: floor" needs the debug_tile_text setting.
 static func describe_tile(st, c: Vector2i, debug: bool) -> String:
 	var bits: Array = []
+	var t_desc := str(st.tile_info(st.get_terrain(c)).get("desc", ""))
+	var s_desc := str(st.surface_info(st.get_surface(c)).get("desc", ""))
 	match st.get_terrain(c):
-		BattleState.Terrain.WALL: bits.append("Wall: blocks movement and sight")
-		BattleState.Terrain.BARREL: bits.append("Explosive barrel: any hit, fire or lightning sets off a 3x3 blast")
+		BattleState.Terrain.FLOOR: pass
+		BattleState.Terrain.WALL: bits.append(t_desc if t_desc != "" else "Wall: blocks movement and sight")
+		BattleState.Terrain.BARREL: bits.append(t_desc if t_desc != "" else "Explosive barrel: any hit, fire or lightning sets off a 3x3 blast")
+		_: bits.append(t_desc if t_desc != "" else BattleState.terrain_name(st.get_terrain(c)).capitalize())
 	match st.get_surface(c):
-		BattleState.Surface.WATER: bits.append("Water: conducts lightning, fire turns it to steam")
-		BattleState.Surface.OIL: bits.append("Oil: fire ignites the whole patch")
+		BattleState.Surface.WATER: bits.append(s_desc if s_desc != "" else "Water: conducts lightning, fire turns it to steam")
+		BattleState.Surface.OIL: bits.append(s_desc if s_desc != "" else "Oil: fire ignites the whole patch")
 		BattleState.Surface.STEAM: bits.append("Steam: blocks sight, fades in %d" % st.steam_timer[st.idx(c)])
 	var u = st.unit_at(c)
 	if u != null:
@@ -493,8 +512,13 @@ static func describe_tile(st, c: Vector2i, debug: bool) -> String:
 	return "[color=#aab]%s[/color]" % "; ".join(bits)
 
 
+func _solo() -> bool:
+	return _heroes().size() == 1
+
+
 func _turn_order() -> String:
-	var o: Array = ["[b]Turn order[/b]: heroes in any order, then enemies 1 -> %d" % state.living("enemy").size()]
+	var who := ("%s" % _heroes()[0].name) if _solo() else "heroes in any order"
+	var o: Array = ["[b]Turn order[/b]: %s, then enemies 1 -> %d" % [who, state.living("enemy").size()]]
 	var enemies: Array = state.living("enemy")
 	enemies.sort_custom(func(a, b): return a.order < b.order)
 	for e in enemies:
@@ -531,7 +555,7 @@ func _update_buttons(u) -> void:
 		sel_slot, heroes.map(func(h): return Color(GameData.hero(h.type_id)["color"])))
 	for i in 3:
 		var b: Button = hud.ability_btns[i]
-		if u == null:
+		if u == null or i >= u.abilities.size():
 			b.text = "-"
 			b.disabled = true
 			b.button_pressed = false
@@ -540,11 +564,18 @@ func _update_buttons(u) -> void:
 		var ab := GameData.ability(id)
 		var cd := int(u.cooldowns.get(id, 0))
 		var line2 := "%s %d · r%d" % [ab["element"], int(ab["damage"]), int(ab["range"])]
+		var left := int(u.uses.get(id, -1))  # -1: no limit
+		if left == 0:
+			line2 = "used"
+		elif ab.has("source_tile") and Rules.source_cells(state, u, id).is_empty():
+			line2 = str(ab.get("needs_text", "needs " + str(ab["source_tile"])))
+		elif left > 0:
+			line2 = "%d left" % left
 		if cd > 0:
 			line2 = "ready in %d" % cd
 		b.text = "%s\n%s" % [ab["name"], line2]
 		b.tooltip_text = "[%s] %s" % [SLOT_KEYS[i], ab["desc"]]
-		b.disabled = not can or not u.can_use(id)
+		b.disabled = not can or not Rules.ability_available(state, u, id)
 		b.button_pressed = mode == "target" and ability_id == id
 	hud.wait_btn.disabled = not can or u == null or u.is_done()
 	hud.undo_btn.disabled = not can or undo_stack.is_empty()
