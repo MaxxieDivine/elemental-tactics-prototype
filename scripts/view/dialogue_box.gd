@@ -9,6 +9,7 @@ extends Control
 signal closed
 
 const AssetCatalog = preload("res://scripts/core/asset_catalog.gd")
+const Dialogue = preload("res://scripts/core/dialogue.gd")
 
 const PAD := 10.0
 const BTN := Vector2(96, 52)
@@ -22,6 +23,7 @@ var panel: Panel
 var portrait_tex: TextureRect
 var portrait_box: ColorRect
 var portrait_label: Label
+var portrait_initial: Label
 var name_label: Label
 var text: RichTextLabel
 var next_btn: Button
@@ -48,12 +50,24 @@ func _build() -> void:
 	portrait_box = ColorRect.new()
 	portrait_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(portrait_box)
+	# Placeholder portrait: the speaker's initial, large, with the name below.
+	portrait_initial = Label.new()
+	portrait_initial.set_anchors_preset(Control.PRESET_FULL_RECT)
+	portrait_initial.offset_bottom = -16
+	portrait_initial.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	portrait_initial.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	portrait_initial.add_theme_font_size_override("font_size", 40)
+	portrait_initial.add_theme_color_override("font_color", Color.WHITE)
+	portrait_initial.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.6))
+	portrait_initial.add_theme_constant_override("outline_size", 4)
+	portrait_box.add_child(portrait_initial)
 	portrait_label = Label.new()
 	portrait_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	portrait_label.offset_bottom = -3
 	portrait_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	portrait_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	portrait_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	portrait_label.add_theme_font_size_override("font_size", 13)
+	portrait_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	portrait_label.clip_text = true
+	portrait_label.add_theme_font_size_override("font_size", 12)
 	portrait_label.add_theme_color_override("font_color", Color.WHITE)
 	portrait_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
 	portrait_label.add_theme_constant_override("outline_size", 3)
@@ -159,13 +173,15 @@ func _show_line() -> void:
 	# Placeholder portrait: the speaker's colour with their name on it.
 	portrait_box.color = Color(l["color"])
 	portrait_label.text = l["name"]
-	portrait_label.visible = tex == null
+	portrait_initial.text = l["name"].left(1).to_upper()
+	portrait_box.visible = tex == null
 	_update_button()
 
 
+## Labels come from data: the line's own "button" (e.g. "Insert coin"), else
+## the Next / Close defaults; "Skip" while the line is still typing.
 func _update_button() -> void:
-	var last: bool = runner.index >= runner.entry["lines"].size() - 1
-	next_btn.text = "Skip" if is_typing() else ("Close" if last else "Next")
+	next_btn.text = Dialogue.default_button("skip") if is_typing() else str(runner.line().get("button", ""))
 
 
 func _process(delta: float) -> void:

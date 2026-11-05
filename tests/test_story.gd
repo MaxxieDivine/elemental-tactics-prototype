@@ -163,3 +163,29 @@ func test_hero_display_names_come_from_data() -> void:
 			var src := FileAccess.get_file_as_string(dir + file)
 			for id in heroes:
 				check(not src.contains('"%s"' % heroes[id]["name"]), "%s does not hard-code '%s'" % [file, heroes[id]["name"]])
+
+
+func test_agador_id_name_and_portrait_from_data() -> void:
+	const AssetCatalog = preload("res://scripts/core/asset_catalog.gd")
+	var chars: Dictionary = GameData.get_json("characters")
+	check(chars.has("agador") and not chars.has("believer"), "town character id is agador")
+	eq(chars["agador"]["name"], "Agador", "display name lives in data")
+	eq(chars["agador"]["portrait"], "agador.portrait.neutral", "portrait key")
+	eq(AssetCatalog.path(chars["agador"]["portrait"]), GameData.get_json("assets")["paths"]["agador.portrait.neutral"], "portrait key resolves through assets.json")
+	eq(AssetCatalog.path(chars["agador"]["sprite"]), GameData.get_json("assets")["paths"]["agador.sprite"], "sprite key resolves through assets.json")
+	# A dialogue line spoken by agador shows the data name and portrait key.
+	var f = StoryFlags.new()
+	var d = Dialogue.new(f)
+	d.start("welcome_banner")
+	eq(d.line()["speaker"], "agador", "banner is spoken by agador")
+	eq(d.line()["name"], chars["agador"]["name"], "line shows Agador's display name")
+	eq(d.line()["portrait"], chars["agador"]["portrait"], "line uses Agador's portrait key")
+	# Renaming in data renames the speaker, no code change.
+	chars["agador"]["name"] = "Renamed"
+	eq(d.line()["name"], "Renamed", "rename through data")
+	chars["agador"]["name"] = "Agador"
+	for dir in ["res://scripts/core/", "res://scripts/view/"]:
+		for file in DirAccess.get_files_at(dir):
+			if file.ends_with(".gd"):
+				check(not FileAccess.get_file_as_string(dir + file).to_lower().contains("believer"), "%s has no leftover 'believer'" % file)
+				check(not FileAccess.get_file_as_string(dir + file).contains('"Agador"'), "%s does not hard-code Agador's name" % file)
