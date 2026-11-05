@@ -1,6 +1,7 @@
 {
-  "_comment": "Outside the inn: the square, the dock and the cellar hatch. Rows use the tile legend in data/town.json. npcs/objects/props block movement and are depth-sorted with the player. 'stand' (optional) lists the cells the player may use a thing from (default: any free side). Exits: tapping one walks next to it, then fades to map 'to', arriving at 'arrive' facing 'facing'.",
+  "_comment": "Outside the inn: the square, the dock and the cellar hatch. Rows use the tile legend in data/town.json. npcs/objects/props block movement and are depth-sorted with the player. 'stand' (optional) lists the cells the player may use a thing from (default: any free side). Exits: tapping one walks next to it, then fades to map 'to', arriving at 'arrive' facing 'facing'. 'lighting' names a preset in data/town.json. 'triggers': walking onto one of a trigger's cells starts its interaction when its rule matches (requires / unless / time_of_day); 'once' runs it only one time; 'facing' turns the player first.",
   "name": "Town",
+  "lighting": "outdoor",
   "map": [
     "gggggggggggggggg",
     "ggRRRRRRRRRRggfg",
@@ -26,7 +27,23 @@
 
   "objects": [
     { "id": "welcome_banner", "name": "Welcome banner", "sprite": "town.welcome_banner", "shape": "banner", "color": "#c0392b", "cell": [9, 8],  "interaction": "welcome_banner" },
-    { "id": "letter",         "name": "Letter",         "sprite": "town.letter",         "shape": "letter", "color": "#f4efe1", "cell": [4, 16], "interaction": "letter" },
+    { "id": "letter",         "name": "Letter",         "sprite": "town.letter",         "shape": "letter", "color": "#f4efe1", "cell": [4, 16], "interaction": "letter",
+      "_comment": "Gone during the first night; back in the morning.",
+      "states": [
+        { "requires": ["first_night_started"], "unless": ["first_night_over"], "hidden": true }
+      ] },
+    { "id": "night_letter",   "name": "New letter",     "sprite": "town.night_letter",   "shape": "letter", "color": "#e8ecff", "cell": [4, 16], "interaction": "night_letter",
+      "hidden": true,
+      "_comment": "Appears in the old letter's spot once the ferry has gone; gone in the morning.",
+      "states": [
+        { "requires": ["first_night_started", "saw_ferry"], "unless": ["first_night_over"], "hidden": false }
+      ] },
+    { "id": "ferry_silhouette", "name": "Ferry",        "sprite": "town.ferry",          "shape": "ferry",  "color": "#141a30", "cell": [10, 16], "glow": "ferry_lantern",
+      "hidden": true,
+      "_comment": "Scenery offshore (nothing to tap) on the first night, until Agador reaches the end of the dock.",
+      "states": [
+        { "requires": ["first_night_started"], "unless": ["saw_ferry", "first_night_over"], "time_of_day": "night", "hidden": false }
+      ] },
     { "id": "cellar_hatch",   "name": "Cellar hatch",   "sprite": "town.cellar_hatch",   "shape": "hatch",  "color": "#6b4a2b", "cell": [9, 4],  "interaction": "cellar_hatch", "stand": [[8, 4], [10, 4]] }
   ],
 
@@ -36,12 +53,18 @@
     { "sprite": "town.tree", "shape": "tree", "color": "#2f6b34", "cell": [1, 8] },
     { "sprite": "town.tree", "shape": "tree", "color": "#2f6b34", "cell": [14, 10] },
     { "sprite": "town.tree", "shape": "tree", "color": "#2f6b34", "cell": [0, 1] },
-    { "sprite": "town.lamp", "shape": "lamp", "color": "#3b3b46", "cell": [3, 4] },
-    { "sprite": "town.lamp", "shape": "lamp", "color": "#3b3b46", "cell": [11, 9] },
+    { "sprite": "town.lamp", "shape": "lamp", "color": "#3b3b46", "cell": [3, 4],  "glow": "lamp" },
+    { "sprite": "town.lamp", "shape": "lamp", "color": "#3b3b46", "cell": [11, 9], "glow": "lamp" },
     { "sprite": "town.crate", "shape": "crate", "color": "#a0723f", "cell": [7, 16] }
   ],
 
   "exits": [
     { "id": "inn_front_door", "name": "Inn door", "cells": [[6, 3], [7, 3]], "to": "lobby", "arrive": [4, 7], "facing": "up" }
+  ],
+
+  "triggers": [
+    { "id": "dock_end_trigger", "cells": [[4, 15], [5, 15], [6, 15], [7, 15], [5, 16], [6, 16]], "interaction": "dock_end_trigger", "facing": "right",
+      "requires": ["first_night_started"], "unless": ["saw_ferry", "first_night_over"], "time_of_day": "night", "once": true,
+      "_comment": "The end of the dock: on the first night, the ferry vanishes." }
   ]
 }

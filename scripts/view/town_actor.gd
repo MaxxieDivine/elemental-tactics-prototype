@@ -336,11 +336,11 @@ func _draw_ferry() -> void:
 	var bob := roundf(_pulse(3.2))
 	var o := Vector2(0, bob)
 	var rim := color.lightened(0.3)
-	var hull := PackedVector2Array([Vector2(-19, -7), Vector2(19, -7), Vector2(15, 0), Vector2(-15, 0)])
+	var hull := PackedVector2Array([Vector2(-15, -7), Vector2(15, -7), Vector2(12, 0), Vector2(-12, 0)])
 	for i in hull.size():
 		hull[i] += o
 	draw_colored_polygon(hull, color)
-	draw_line(Vector2(-19, -7) + o, Vector2(19, -7) + o, rim, 1.0)  # deck edge
+	draw_line(Vector2(-15, -7) + o, Vector2(15, -7) + o, rim, 1.0)  # deck edge
 	draw_rect(Rect2(Vector2(-10, -14) + o, Vector2(14, 7)), color)  # cabin
 	draw_line(Vector2(-10, -14) + o, Vector2(4, -14) + o, rim, 1.0)
 	for x in [-8, -4, 0]:
@@ -351,8 +351,8 @@ func _draw_ferry() -> void:
 	draw_rect(Rect2(Vector2(4, -18) + o, Vector2(3, 3)), Color(1.0, 0.82, 0.45, lamp))  # the one dim lantern
 	# Water lapping at the hull.
 	var ph := fmod(t * 0.8, 1.0)
-	draw_line(Vector2(-17 - ph * 3, 1), Vector2(-11, 1), Color(0.6, 0.7, 1.0, 0.35), 1.0)
-	draw_line(Vector2(11, 1), Vector2(17 + ph * 3, 1), Color(0.6, 0.7, 1.0, 0.35), 1.0)
+	draw_line(Vector2(-14 - ph * 2, 1), Vector2(-9, 1), Color(0.6, 0.7, 1.0, 0.35), 1.0)
+	draw_line(Vector2(9, 1), Vector2(14 + ph * 2, 1), Color(0.6, 0.7, 1.0, 0.35), 1.0)
 
 
 ## An arcade cabinet that does not belong in a cozy inn: neon marquee,
